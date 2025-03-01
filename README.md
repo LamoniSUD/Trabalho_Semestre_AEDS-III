@@ -1,5 +1,3 @@
-# Trabalho_Semestre_AEDS-III
-Treinando Versionamento de Código Git &amp; Github. Aulas do DIO.me
 import java.io.File;
 import java.util.*;
 
@@ -70,4 +68,101 @@ public class Main {
         Main main = new Main();
         main.menu();
     }
+}
+
+Class List{
+
+    Celula first, last;
+    List(Perfume P){
+        first = new Celula(p);
+        last = first;
+    }
+
+    Private void insertionFirst(Perfume parfum) throws exception{
+        Celula tmp = new Celula(parfum);
+        tmp.right = first.right;
+        tmp.left = first;
+        first.right = tmp;
+        if(first == last){
+            ultimo = tmp;
+        }else{
+            tmp.right.left = tmp;
+        }
+        tmp = nul;
+
+    }
+}
+Class Celula{
+
+    Perfume parfum;
+    Celula left, right;
+
+    Celula (Parfum P){
+        this.parfum = P;
+        this.left = this.right = null;
+
+    }
+    public Perfume getPerfume() {return parfum;}
+    public void setPerfume(Parfum parfum) {this.parfum = parfum;}
+}
+
+public class Perfume{
+    int id;
+    Boolean tombstone;
+    String name;
+    int value; //Valor escrito em centavos para melhores cálculos
+    int stock;
+
+    Perfume (int ID, String name, int value){
+        this.id = ID;
+        this.name = name;
+        this.value = value;
+    }
+
+    public int getid(){return id;}
+    public void setid(int id){this.id = id;}
+    public boolean getTombstone(){return tombstone;}
+    public void setTombstone(boolean tombstone){this.tombstone = tombstone;}
+    public String getName(){return name;}
+    public void setName(String name){this.name = name;}
+    public int getValue(){return Value;}
+    public void setValue(int value){this.value = value;}
+    public int getStock(){return stock;}
+    public void setStock(int stock){this.stock = stock;}
+
+    void update (String name,int price){
+        this.name = name;
+        this.value = price;     
+    }
+
+        public byte[] toByteArray()throws IOException{
+        ByteArrayOutputStream BAOS = new ByteArrayOutputStream();
+        DataOutputStream DOS = new DataOutputStream(BAOS);
+        DOS.writeInt(id);
+        DOS.writeBoolean(Tombstone);
+        DOS.writeUTF(name);
+        DOS.writeInt(value);
+        DOS.writeInt(stock);
+
+        return BAOS.toByteArray();
+    }
+
+    public static Perfume fromByteArray(byte[] data) Throws IOException{
+        ByteArrayInputStream BAIS = new ByteArrayInputStream(data);
+        DataInputStream DIS = new DataInputStream(BAIS);
+        int id = DIS.readInt();
+        Boolean Tombstone = DIS.readBoolean();
+        String name = DIS.readUTF();
+        int value = DIS.readInt();
+        int stock = DIS.readInt();
+
+        return new Perfume(id, Tombstone, name, value, stock);
+    }
+    
+    
+
+
+
+
+
 }
