@@ -1,5 +1,5 @@
-import java.io.File;
-import java.util.*;
+import java.io.*;
+import java.util.Scanner;
 
 public class Main {
     private Scanner scan = new Scanner(System.in);
@@ -9,22 +9,22 @@ public class Main {
     public void menu() {
         while (true) {
             System.out.println("\nMenu:");
-            System.out.println("1. Write on the archive");
-            System.out.println("2. Read the Archive");
+            System.out.println("1. Add a Parfum in stock");
+            System.out.println("2. Show Parfums in Stock");
             System.out.println("3. Show archive's size");
             System.out.println("4. Delete the archive");
-            System.out.println("5. Add on the archive");
+            System.out.println("5. Show Out of Stock Parfums");
             System.out.println("6. Quit");
             System.out.print("Choose your option: ");
             int opcao = scan.nextInt();
             scan.nextLine();
-            
+
             switch (opcao) {
                 case 1:
                     escrever.write(scan);
                     break;
                 case 2:
-                    ler.read();
+                    ler.readIn();
                     break;
                 case 3:
                     exibirTamanhoArquivo();
@@ -32,10 +32,12 @@ public class Main {
                 case 4:
                     deletarArquivo();
                     break;
+                case 5:
+                    ler.readOut();
+                    break;
                 case 6:
-                	System.out.println("Saindo...");
-                	scan.close();
-                	return;
+                    System.out.println("Saindo...");
+                    return;
                 default:
                     System.out.println("Opção inválida. Tente novamente.");
             }
@@ -70,125 +72,99 @@ public class Main {
     }
 }
 
-Class List{
+class Lista {
+    private Celula first, last;
 
-    Celula first, last;
-
-    List(Perfume P){
-        first = new Celula(p);
-        last = first;
+    public Lista() {
+        first = last = null;
     }
 
-    private void insertionFirst(Perfume parfum) Throws Exception{
-        Celula tmp = new Celula(parfum);
-        tmp.right = first.right;
-        tmp.left = first;
-        first.right = tmp;
-        if(first == last){
-            ultimo = tmp;
-        }else{
-            tmp.right.left = tmp;
-        }
-        tmp = nul;
-    }
-
-    private void insertion(Perfume parfum) Throws Exception{
-        last.right = new Celula(parfum);
-        last.right.left = last;     
-        last = last.right;
-    }
-
-    private Perfume search(String name) {
-        Celula tmp = first;
-        while (tmp.parfum.name != name && tmp != null) {
-            tmp = tmp.right;
+    public void insertionFirst(Perfume perfume) {
+        if (perfume == null) {
+            throw new IllegalArgumentException("Perfume não pode ser nulo");
         }
 
-        if (tmp.parfum.name == name) {
-            return tmp.parfum;
+        Celula tmp = new Celula(perfume);
+
+        if (first == null) {
+            first = last = tmp;
         } else {
-            System.err.println("Perfume não encontrado");
-            return null;
+            tmp.right = first;
+            first.left = tmp;
+            first = tmp;
         }
     }
-
-    private Perfume remove(String name) {
-        Celula tmp = first;
-        while (tmp.parfum.name != name && tmp != null) {
-            tmp = tmp.right;
-        }
-        if (tmp.parfum.name == name) {
-            tmp.parfum.statusOFF();
-            return tmp.parfum;
-        } else {
-            System.err.println("Perfume nao Encontrado");
-            return null;
-        }
-    }
-
-    private void show(){
-        Celula tmp = first.right;
-        while (tmp!=null) {
-            System.err.println();
-            
-        }
-    }
-
-
-    }
-Class Celula{
-
-    Perfume parfum;
-    Celula left, right;
-
-    Celula (Parfum P){
-        this.parfum = P;
-        this.left = this.right = null;
-
-    }
-    public Perfume getPerfume() {return parfum;}
-    public void setPerfume(Parfum parfum) {this.parfum = parfum;}
 }
 
-public class Perfume {
-    int id;
-    Boolean tombstone;
-    String name;
-    int value; // Valor escrito em centavos para melhores cálculos
-    int stock;
+class Celula {
+    Perfume perfume;
+    Celula left, right;
 
-    Perfume(int ID, String name, int value) {
-        this.id = ID;
-        this.name = name;
-        this.value = value;
+    public Celula(Perfume perfume) {
+        this.perfume = perfume;
+        this.left = this.right = null;
     }
 
-    public int getid() {
+    public Perfume getPerfume() {
+        return perfume;
+    }
+
+    public void setPerfume(Perfume perfume) {
+        this.perfume = perfume;
+    }
+}
+
+class Perfume {
+    private int id;
+    private boolean available;
+    private String[] info;
+    private int value;
+    private int stock;
+
+    public Perfume(int id, String name, String marca, int value) {
+        this.id = id;
+        this.value = value;
+        this.available = true;
+        this.info = new String[2];
+        this.info[0] = name;
+        this.info[1] = marca;
+    }
+
+    public int getId() {
         return id;
     }
 
-    public void setid(int id) {
+    public void setId(int id) {
         this.id = id;
     }
 
-    public boolean getTombstone() {
-        return tombstone;
+    public boolean isAvailable() {
+        return available;
     }
 
-    public void setTombstone(boolean tombstone) {
-        this.tombstone = tombstone;
+    public void setAvailable(boolean available) {
+        this.available = available;
     }
 
     public String getName() {
-        return name;
+        return info[0];
+    }
+    public void setName(String name){
+        this.info[0] = name;
+    }
+    public String getMarca(){
+        return info[1];
+    }
+    public void setMarca(String marca){
+        this.info[1] = marca;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setinfo(String[] info) {
+        this.info = info;
     }
 
     public int getValue() {
-        return Value;
+        return value;
     }
 
     public void setValue(int value) {
@@ -201,52 +177,148 @@ public class Perfume {
 
     public void setStock(int stock) {
         this.stock = stock;
+        this.available = stock > 0;
     }
 
-    void update(String name, int price) {
-        this.name = name;
+    public void update(String name, String marca, int price) {
+        this.info[0] = name;
+        this.info[1] = marca;
         this.value = price;
     }
 
-    void statusOFF() {
-        setTombstone(false);
+    public byte[] toByteArray() throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        DataOutputStream dos = new DataOutputStream(baos);
+        dos.writeInt(id);
+        dos.writeBoolean(available);
+        dos.writeUTF(info[0]);
+        dos.writeUTF(info[1]);
+        dos.writeInt(value);
+        dos.writeInt(stock);
+        return baos.toByteArray();
     }
 
-    void statusON() {
-        setTombstone(true);
+    public static Perfume fromByteArray(byte[] data) throws IOException {
+        ByteArrayInputStream bais = new ByteArrayInputStream(data);
+        DataInputStream dis = new DataInputStream(bais);
+        int id = dis.readInt();
+        boolean available = dis.readBoolean();
+        String name = dis.readUTF();
+        String marca = dis.readUTF();
+        int value = dis.readInt();
+        int stock = dis.readInt();
+
+        Perfume perfume = new Perfume(id, name, marca, value);
+        perfume.setStock(stock);
+
+        return perfume;
+    }
+}
+
+class Ler {
+    public void readIn() {
+        File file = new File("archive.bin");
+
+        if (!file.exists()) {
+            System.out.println("O arquivo não existe.");
+            return;
+        }
+
+        try (FileInputStream fis = new FileInputStream(file);
+                DataInputStream dis = new DataInputStream(fis)) {
+
+            System.out.println("Perfumes disponíveis:");
+
+            while (dis.available() > 0) {
+                int size = dis.readInt();
+                byte[] data = new byte[size];
+                dis.readFully(data);
+                Perfume perfume = Perfume.fromByteArray(data);
+
+                if (perfume.isAvailable()) {
+                    System.out.println("--------------------");
+                    System.out.println("ID: " + perfume.getId());
+                    System.out.println("Nome: " + perfume.getName());
+                    System.out.println("Marca" + perfume.getMarca());
+                    System.out.println("Valor: R$ " + perfume.getValue() / 100.0);
+                    System.out.println("Estoque: " + perfume.getStock());
+                    System.out.println("Em estoque: " + (perfume.isAvailable() ? "Sim" : "Não"));
+                }
+            }
+
+        } catch (IOException e) {
+            System.out.println("Erro ao ler o arquivo: " + e.getMessage());
+        }
     }
 
-    public byte[] toByteArray()throws IOException{
-        ByteArrayOutputStream BAOS = new ByteArrayOutputStream();
-        DataOutputStream DOS = new DataOutputStream(BAOS);
-        DOS.writeInt(id);
-        DOS.writeBoolean(Tombstone);
-        DOS.writeUTF(name);
-        DOS.writeInt(value);
-        DOS.writeInt(stock);
+    public void readOut() {
+        File file = new File("archive.bin");
 
-        return BAOS.toByteArray();
+        if (!file.exists()) {
+            System.out.println("O arquivo não existe.");
+            return;
+        }
+
+        try (FileInputStream fis = new FileInputStream(file);
+                DataInputStream dis = new DataInputStream(fis)) {
+
+            System.out.println("Perfumes não disponíveis:");
+
+            while (dis.available() > 0) {
+                int size = dis.readInt();
+                byte[] data = new byte[size];
+                dis.readFully(data);
+                Perfume perfume = Perfume.fromByteArray(data);
+
+                if (!perfume.isAvailable()) {
+                    System.out.println("--------------------");
+                    System.out.println("ID: " + perfume.getId());
+                    System.out.println("Nome: " + perfume.getName());
+                    System.out.println("Valor: R$ " + perfume.getValue() / 100.0);
+                    System.out.println("Estoque: " + perfume.getStock());
+                    System.out.println("Em estoque: " + (perfume.isAvailable() ? "Sim" : "Não"));
+                }
+            }
+
+        } catch (IOException e) {
+            System.out.println("Erro ao ler o arquivo: " + e.getMessage());
+        }
     }
+}
 
-    public static Perfume fromByteArray(byte[] data) Throws IOException{
-        ByteArrayInputStream BAIS = new ByteArrayInputStream(data);
-        DataInputStream DIS = new DataInputStream(BAIS);
-        int id = DIS.readInt();
-        Boolean Tombstone = DIS.readBoolean();
-        String name = DIS.readUTF();
-        int value = DIS.readInt();
-        int stock = DIS.readInt();
+class Escrever {
+    public void write(Scanner scan) {
+        try (FileOutputStream fos = new FileOutputStream("archive.bin", true); // "true" para append
+                DataOutputStream dos = new DataOutputStream(fos)) {
 
-        return new Perfume(id, Tombstone, name, value, stock);
+            System.out.println("Digite o ID do perfume: ");
+            int id = scan.nextInt();
+            scan.nextLine();
+
+            System.out.println("Digite o nome do perfume: ");
+            String name = scan.nextLine();
+
+            System.out.println("Digite a marca do perfume: ");
+            String marca = scan.nextLine();
+
+            System.out.println("Digite o valor do perfume (em centavos): ");
+            int value = scan.nextInt();
+
+            System.out.println("Digite o estoque do perfume: ");
+            int stock = scan.nextInt();
+
+            Perfume perfume = new Perfume(id, name, marca, value);
+            perfume.setStock(stock);
+
+            byte[] perfumeBytes = perfume.toByteArray();
+
+            dos.writeInt(perfumeBytes.length);
+            dos.write(perfumeBytes); // Depois, escreve o objeto serializado
+
+            System.out.println("Perfume adicionado com sucesso!");
+
+        } catch (IOException e) {
+            System.out.println("Erro ao escrever no arquivo: " + e.getMessage());
+        }
     }
-    
-    public String toString(Perfume parfume){
-        
-    }
-    
-
-
-
-
-
 }
