@@ -1,4 +1,5 @@
 import java.io.*;
+import java.time.LocalDate;
 import java.util.Scanner;
 
 public class Main {
@@ -120,14 +121,16 @@ class Perfume {
     private String[] info;
     private int value;
     private int stock;
+    private LocalDate date;
 
-    public Perfume(int id, String name, String marca, int value) {
+    public Perfume(int id, String name, String marca, int value, LocalDate date) {
         this.id = id;
         this.value = value;
         this.available = true;
         this.info = new String[2];
         this.info[0] = name;
         this.info[1] = marca;
+        this.date = date;
     }
 
     public int getId() {
@@ -179,6 +182,13 @@ class Perfume {
         this.stock = stock;
         this.available = stock > 0;
     }
+    
+    public LocalDate getDate() {
+    	return date;
+    }
+    public void setDate(LocalDate date) {
+    	this.date = date;
+    }
 
     public void update(String name, String marca, int price) {
         this.info[0] = name;
@@ -195,6 +205,7 @@ class Perfume {
         dos.writeUTF(info[1]);
         dos.writeInt(value);
         dos.writeInt(stock);
+        dos.writeLong(this.date.toEpochDay());
         return baos.toByteArray();
     }
 
@@ -207,12 +218,24 @@ class Perfume {
         String marca = dis.readUTF();
         int value = dis.readInt();
         int stock = dis.readInt();
+        LocalDate date = LocalDate.ofEpochDay(dis.readLong());
 
-        Perfume perfume = new Perfume(id, name, marca, value);
+        Perfume perfume = new Perfume(id, name, marca, value, date);
         perfume.setStock(stock);
 
         return perfume;
     }
+    
+    @Override
+    public String toString() {
+    	return "\nID........: " + this.id +
+    	"\nAvaiable...:" + this.available +
+    	"\nNome.......: " + this.info[0] +
+    	"\nMarca......: " + this.info[1] +
+    	"\nPreço......: " + this.value +
+    	"\nEstoque....:" + this.stock +
+    	"\nData.......: " + this.date;
+    	}
 }
 
 class Ler {
@@ -229,7 +252,7 @@ class Ler {
 
             System.out.println("Perfumes disponíveis:");
 
-            while (dis.available() > 0) {
+            while (fis.available() > 0) {
                 int size = dis.readInt();
                 byte[] data = new byte[size];
                 dis.readFully(data);
@@ -243,6 +266,7 @@ class Ler {
                     System.out.println("Valor: R$ " + perfume.getValue() / 100.0);
                     System.out.println("Estoque: " + perfume.getStock());
                     System.out.println("Em estoque: " + (perfume.isAvailable() ? "Sim" : "Não"));
+                    System.out.println("Data: " + perfume.getDate());
                 }
             }
 
@@ -288,7 +312,7 @@ class Ler {
 
 class Escrever {
     public void write(Scanner scan) {
-        try (FileOutputStream fos = new FileOutputStream("archive.bin", true); // "true" para append
+        try (FileOutputStream fos = new FileOutputStream("archive.bin", true); // "true" para oppend
                 DataOutputStream dos = new DataOutputStream(fos)) {
 
             System.out.println("Digite o ID do perfume: ");
@@ -306,8 +330,10 @@ class Escrever {
 
             System.out.println("Digite o estoque do perfume: ");
             int stock = scan.nextInt();
-
-            Perfume perfume = new Perfume(id, name, marca, value);
+            
+            LocalDate date = LocalDate.now();
+            
+            Perfume perfume = new Perfume(id, name, marca, value, date);
             perfume.setStock(stock);
 
             byte[] perfumeBytes = perfume.toByteArray();
