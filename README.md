@@ -42,7 +42,11 @@ public class Main {
 				}
 				break;
 			case 4:
-				deletarArquivo();
+				System.out.println("Deseja Deletar arquivo completamente? sim/nao");
+				String choice = scan.nextLine();
+				if(choice.equalsIgnoreCase("sim")) {
+					deletarArquivo();
+				}
 				break;
 			case 5:
 				ler.readOut();
@@ -58,11 +62,16 @@ public class Main {
 
 	private void deletarArquivo() {
 		File arquivo = new File("archive.bin");
-		if (arquivo.delete()) {
-			System.out.println("Arquivo Deletado");
-		} else {
-			System.out.println("Falha ao deletar o arquivo ou ele não existe.");
+		if(arquivo.exists()) {
+			System.out.println("Arquivo Existe");
+		}else {
+			System.out.println("O arquivo não existe.");
 		}
+		if (arquivo.delete()) {
+			System.out.println("Arquivo Deletado com Sucesso");
+		} else {
+			System.out.println("Falha ao deletar o arquivo.");}
+		
 	}
 
 	public Perfume searchPerfume(String searchTerm) {
@@ -149,49 +158,40 @@ public class Main {
 
 class Ler {
 	public void readIn() {
-		try (RandomAccessFile raf = new RandomAccessFile("archive.bin", "r")) {
-			long fileLength = raf.length();
+        try (RandomAccessFile raf = new RandomAccessFile("archive.bin", "r")) {
+            long fileLength = raf.length();
 
-			System.out.println("Perfumes disponíveis:");
+            if (fileLength == 0) {
+                System.out.println("O arquivo está vazio.");
+                return;
+            }
 
-			if (fileLength == 0) {
-				System.out.println("O arquivo está vazio.");
-				return;
-			}
+            System.out.println("Perfumes disponíveis:");
+            while (raf.getFilePointer() < fileLength) {
+                int size = raf.readInt();
+                if (size <= 0) {
+                    System.out.println("Erro ao ler o tamanho do perfume. Dados corrompidos?");
+                    break;
+                }
+                byte[] data = new byte[size];
+                raf.readFully(data);
 
-			while (raf.getFilePointer() < fileLength) {
-				int size = raf.readInt();
-				if (size <= 0) {
-					System.out.println("Erro ao ler o tamanho do perfume. Dados corrompidos?");
-					break;
-				}
-				byte[] data = new byte[size];
-				raf.readFully(data);
-
-				Perfume perfume = new Perfume();
-				perfume = Perfume.fromByteArray(data); // Alterado para chamada de método, retornando o perfume
-				if (perfume != null) {
-					System.out.println("Perfume lido: " + perfume.toString());
-					if (perfume.isAvailable()) {
-						System.out.println("--------------------");
-						System.out.println("ID: " + perfume.getId());
-						System.out.println("Nome: " + perfume.getName());
-						System.out.println("Marca: " + perfume.getMarca());
-						System.out.println("Valor: R$ " + perfume.getValue() / 100.0);
-						System.out.println("Estoque: " + perfume.getStock());
-						System.out.println("Em estoque: " + (perfume.isAvailable() ? "Sim" : "Não"));
-						System.out.println("Data: " + perfume.getDate());
-					} else {
-						System.out.println("Este perfume não está disponível no momento.");
-					}
-				} else {
-					System.out.println("Erro ao criar perfume.");
-				}
-			}
-		} catch (IOException e) {
-			System.out.println("Erro ao ler o arquivo: " + e.getMessage());
-		}
-	}
+                Perfume perfume = new Perfume();
+                perfume = Perfume.fromByteArray(data); // Alterado para chamada de método, retornando o perfume
+                if (perfume != null && perfume.isAvailable()) {
+                    System.out.println("--------------------");
+                    System.out.println("ID: " + perfume.getId());
+                    System.out.println("Nome: " + perfume.getName());
+                    System.out.println("Marca: " + perfume.getMarca());
+                    System.out.println("Valor: R$ " + perfume.getValue() / 100.0);
+                    System.out.println("Estoque: " + perfume.getStock());
+                    System.out.println("Data: " + perfume.getDate());
+                }
+            }
+        } catch (IOException e) {
+            System.out.println("Erro ao ler o arquivo: " + e.getMessage());
+        }
+    }
 
 	public void readOut() {
 		try (RandomAccessFile raf = new RandomAccessFile("archive.bin", "r")) {
@@ -327,8 +327,8 @@ class Perfume {
 		this.info[1] = marca;
 	}
 
-	public int getValue() {
-		return value;
+	public float getValue() {
+		return (float)value;
 	}
 
 	public void setValue(int value) {
@@ -339,9 +339,10 @@ class Perfume {
 		return stock;
 	}
 
-	public void setStock(int stock) {
-		this.stock = stock;
-	}
+	 public void setStock(int stock) {
+         this.stock = stock;
+         this.available = stock > 0;
+     }
 
 	public LocalDate getDate() {
 		return date;
@@ -387,9 +388,14 @@ class Perfume {
 
 	@Override
 	public String toString() {
-		return "Perfume{" + "id=" + id + ", available=" + available + ", name='" + info[0] + '\'' + ", marca='"
-				+ info[1] + '\'' + ", value=" + value + ", stock=" + stock + ", date=" + date + '}';
-	}
+     	return "\nID........: " + this.id +
+     	"\nAvaiable...:" + this.available +
+     	"\nNome.......: " + this.info[0] +
+     	"\nMarca......: " + this.info[1] +
+     	"\nPreço......: " + this.value +
+     	"\nEstoque....:" + this.stock +
+     	"\nData.......: " + this.date;
+     	}
 }
 
 class Lista {
