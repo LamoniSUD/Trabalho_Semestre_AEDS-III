@@ -7,7 +7,7 @@ public class Main {
 	private Scanner scan = new Scanner(System.in);
 	private Escrever escrever = new Escrever();
 	private Ler ler = new Ler();
-
+		//Menu de Seleção Principal do usuário
 	public void menu() {
 		while (true) {
 			System.out.println("\nMenu:");
@@ -19,6 +19,7 @@ public class Main {
 			System.out.println("6. Quit");
 			System.out.print("Choose your option: ");
 
+   				//Chaveamento da Seleção do Usuário
 			int opcao = scan.nextInt();
 			scan.nextLine();
 
@@ -60,6 +61,7 @@ public class Main {
 		}
 	}
 
+ 	//Deletar arquivo completamente
 	private void deletarArquivo() {
 		File arquivo = new File("archive.bin");
 		if(arquivo.exists()) {
@@ -73,7 +75,7 @@ public class Main {
 			System.out.println("Falha ao deletar o arquivo.");}
 		
 	}
-
+	//Retorno de perfume pesquisado
 	public Perfume searchPerfume(String searchTerm) {
 		try (RandomAccessFile raf = new RandomAccessFile("archive.bin", "rw")) {
 			long fileLength = raf.length();
@@ -95,7 +97,7 @@ public class Main {
 		}
 		return null;
 	}
-
+	//Alteração dentro do arquivo do objeto
 	public void update(String term) {
 		try (RandomAccessFile raf = new RandomAccessFile("archive.bin", "rw")) {
 			long fileLength = raf.length();
@@ -111,7 +113,7 @@ public class Main {
 					System.out.println("O que deseja alterar?\n1- Nome\n2- Marca\n3- Estoque\n4- Valor");
 					int opcao = scan.nextInt();
 					scan.nextLine();
-
+					//Seleção de parâmetro a ser alterado
 					switch (opcao) {
 					case 1:
 						System.out.println("Escreva o novo Nome: ");
@@ -155,8 +157,9 @@ public class Main {
 		main.menu();
 	}
 }
-
+//Metodos diferentes de leitura do arquivo
 class Ler {
+	//Objetos Acessáveis
 	public void readIn() {
         try (RandomAccessFile raf = new RandomAccessFile("archive.bin", "r")) {
             long fileLength = raf.length();
@@ -192,7 +195,7 @@ class Ler {
             System.out.println("Erro ao ler o arquivo: " + e.getMessage());
         }
     }
-
+	//Objetos Excluidos Logicamente
 	public void readOut() {
 		try (RandomAccessFile raf = new RandomAccessFile("archive.bin", "r")) {
 			long fileLength = raf.length();
@@ -338,7 +341,7 @@ class Perfume {
 	public int getStock() {
 		return stock;
 	}
-
+		//Atualização de Objeto, Exclusão lógica para objetos de stock 0.
 	 public void setStock(int stock) {
          this.stock = stock;
          this.available = stock > 0;
@@ -397,7 +400,7 @@ class Perfume {
      	"\nData.......: " + this.date;
      	}
 }
-
+//Classe célula e lista não utilizadas ainda no projeto, progeção de uso futuro.
 class Lista {
 	private Celula first, last;
 
