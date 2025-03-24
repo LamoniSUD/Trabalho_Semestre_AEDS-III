@@ -7,6 +7,7 @@ public class Main {
 	private Scanner scan = new Scanner(System.in);
 	private Escrever escrever = new Escrever();
 	private Ler ler = new Ler();
+ 
 		//Menu de Seleção Principal do usuário
 	public void menu() {
 		while (true) {
