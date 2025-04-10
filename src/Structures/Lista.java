@@ -5,7 +5,7 @@ public class Lista {
     private Celula first, last;
 
     public Lista() {
-        first = last = null;
+        first = setLast(null);
     }
 
     public void insertionFirst(Perfume perfume) {
@@ -16,11 +16,20 @@ public class Lista {
         Celula tmp = new Celula(perfume);
 
         if (first == null) {
-            first = last = tmp;
+            first = setLast(tmp);
         } else {
             tmp.right = first;
             first.left = tmp;
             first = tmp;
         }
     }
+
+	public Celula getLast() {
+		return last;
+	}
+
+	public Celula setLast(Celula last) {
+		this.last = last;
+		return last;
+	}
 }
