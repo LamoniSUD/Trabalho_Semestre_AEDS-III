@@ -1,70 +1,56 @@
 package io;
-import java.io.*;
 
 import Models.Perfume;
+import java.util.List;
 
 public class Ler {
+    private BPlusTree tree;
+
+    public Ler() {
+        tree = new BPlusTree();
+    }
+
+    // Método para carregar os perfumes de uma fonte externa, como arquivo ou banco de dados
+    private List<Perfume> carregarPerfumes() {
+        // Aqui você pode implementar a lógica para carregar os perfumes
+        // Exemplo de perfumes estáticos para teste:
+        Perfume p1 = new Perfume("Perfume 1", "Marca 1", 100, LocalDate.now());
+        Perfume p2 = new Perfume("Perfume 2", "Marca 2", 200, LocalDate.now());
+        tree.insert(p1);
+        tree.insert(p2);
+        return tree.getAllPerfumes();  // Retorna todos os perfumes armazenados na árvore
+    }
+
+    // Método para exibir perfumes disponíveis
     public void readIn() {
-        try (RandomAccessFile raf = new RandomAccessFile("archive.bin", "r")) {
-            long fileLength = raf.length();
-
-            if (fileLength == 0) {
-                System.out.println("O arquivo está vazio.");
-                return;
+        List<Perfume> perfumes = carregarPerfumes();  // Carregar perfumes
+        System.out.println("Perfumes disponíveis:");
+        for (Perfume perfume : perfumes) {
+            if (perfume.isAvailable()) {
+                System.out.println("--------------------");
+                System.out.println("ID: " + perfume.getId());
+                System.out.println("Nome: " + perfume.getName());
+                System.out.println("Marca: " + perfume.getMarca());
+                System.out.printf("Valor: R$ %.2f%n", perfume.getValue() / 100.0);  // Exibe valor formatado
+                System.out.println("Estoque: " + perfume.getStock());
+                System.out.println("Data: " + perfume.getDate());
             }
-
-            System.out.println("Perfumes disponíveis:");
-            while (raf.getFilePointer() < fileLength) {
-                int size = raf.readInt();
-                if (size <= 0) {
-                    System.out.println("Erro ao ler o tamanho do perfume. Dados corrompidos?");
-                    break;
-                }
-                byte[] data = new byte[size];
-                raf.readFully(data);
-
-                Perfume perfume = new Perfume();
-                perfume = Perfume.fromByteArray(data);
-                if (perfume != null && perfume.isAvailable()) {
-                    System.out.println("--------------------");
-                    System.out.println("ID: " + perfume.getId());
-                    System.out.println("Nome: " + perfume.getName());
-                    System.out.println("Marca: " + perfume.getMarca());
-                    System.out.println("Valor: R$ " + perfume.getValue() / 100.0);
-                    System.out.println("Estoque: " + perfume.getStock());
-                    System.out.println("Data: " + perfume.getDate());
-                }
-            }
-        } catch (IOException e) {
-            System.out.println("Erro ao ler o arquivo: " + e.getMessage());
         }
     }
 
+    // Método para exibir perfumes não disponíveis
     public void readOut() {
-        try (RandomAccessFile raf = new RandomAccessFile("archive.bin", "r")) {
-            long fileLength = raf.length();
-
-            System.out.println("Perfumes não disponíveis:");
-
-            while (raf.getFilePointer() < fileLength) {
-                int size = raf.readInt();
-                byte[] data = new byte[size];
-                raf.readFully(data);
-                Perfume perfume = new Perfume();
-                perfume = Perfume.fromByteArray(data);
-
-                if (!perfume.isAvailable()) {
-                    System.out.println("--------------------");
-                    System.out.println("ID: " + perfume.getId());
-                    System.out.println("Nome: " + perfume.getName());
-                    System.out.println("Marca" + perfume.getMarca());
-                    System.out.println("Valor: R$ " + perfume.getValue() / 100);
-                    System.out.println("Estoque: " + perfume.getStock());
-                    System.out.println("Em estoque: " + (perfume.isAvailable() ? "Sim" : "Não"));
-                }
+        System.out.println("Perfumes não disponíveis:");
+        for (Perfume perfume : tree.getAllPerfumes()) {  // Recupera todos os perfumes da árvore
+            if (perfume != null && !perfume.isAvailable()) {
+                System.out.println("--------------------");
+                System.out.println("ID: " + perfume.getId());
+                System.out.println("Nome: " + perfume.getName());
+                System.out.println("Marca: " + perfume.getMarca());
+                System.out.printf("Valor: R$ %.2f%n", perfume.getValue() / 100.0);  // Exibe valor formatado
+                System.out.println("Estoque: " + perfume.getStock());
+                System.out.println("Em estoque: " + (perfume.isAvailable() ? "Sim" : "Não"));
             }
-        } catch (IOException e) {
-            System.out.println("Erro ao ler o arquivo: " + e.getMessage());
         }
     }
 }

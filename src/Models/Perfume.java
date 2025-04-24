@@ -7,12 +7,12 @@ public class Perfume {
     private int id;
     private boolean available;
     private String[] info;
-    private int value;
+    private int value;  // Valor em centavos
     private int stock;
     private LocalDate date;
 
     public Perfume() {
-        this(-1, false, "", "", -1, -1, LocalDate.now());
+        this(-1, false, "", "", -1, 0, LocalDate.now());  // Valor padrão para stock
     }
 
     public Perfume(String name, String marca, int value, LocalDate date) {
@@ -27,17 +27,18 @@ public class Perfume {
         this.info[0] = name;
         this.info[1] = marca;
         this.date = date;
+        this.stock = 0;  // Default stock as 0, will be set later
     }
 
-    public Perfume(int i, boolean b, String inf1, String inf2, int V, int S, LocalDate D) {
-        this.id = i;
-        this.available = b;
+    public Perfume(int id, boolean available, String name, String marca, int value, int stock, LocalDate date) {
+        this.id = id;
+        this.available = available;
         this.info = new String[2];
-        this.info[0] = inf1;
-        this.info[1] = inf2;
-        this.value = V;
-        this.stock = S;
-        this.date = D;
+        this.info[0] = name;
+        this.info[1] = marca;
+        this.value = value;
+        this.stock = stock;
+        this.date = date;
     }
 
     public int getId() {
@@ -65,7 +66,7 @@ public class Perfume {
     }
 
     public float getValue() {
-        return (float) value;
+        return value / 100.0f;  // Convertendo de centavos para reais
     }
 
     public void setValue(int value) {
@@ -76,7 +77,11 @@ public class Perfume {
         return stock;
     }
 
+    // Definir o estoque, ajustando a disponibilidade do perfume
     public void setStock(int stock) {
+        if (stock < 0) {
+            throw new IllegalArgumentException("Estoque não pode ser negativo");
+        }
         this.stock = stock;
         this.available = stock > 0;
     }
@@ -89,6 +94,7 @@ public class Perfume {
         this.date = date;
     }
 
+    // Converte o objeto para um byte array
     public byte[] toByteArray() {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
              DataOutputStream dos = new DataOutputStream(baos)) {
@@ -106,6 +112,7 @@ public class Perfume {
         return new byte[0];
     }
 
+    // Converte um byte array de volta para um objeto Perfume
     public static Perfume fromByteArray(byte[] data) {
         try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
              DataInputStream dis = new DataInputStream(bais)) {
@@ -126,11 +133,11 @@ public class Perfume {
     @Override
     public String toString() {
         return "\nID........: " + this.id +
-                "\nAvaiable...:" + this.available +
-                "\nNome.......: " + this.info[0] +
-                "\nMarca......: " + this.info[1] +
-                "\nPreço......: " + this.value +
-                "\nEstoque....:" + this.stock +
-                "\nData.......: " + this.date;
+                "\nDisponível: " + this.available +
+                "\nNome......: " + this.info[0] +
+                "\nMarca.....: " + this.info[1] +
+                "\nPreço.....: R$ " + String.format("%.2f", getValue()) +  // Formata o preço para exibição
+                "\nEstoque...: " + this.stock +
+                "\nData......: " + this.date;
     }
 }
