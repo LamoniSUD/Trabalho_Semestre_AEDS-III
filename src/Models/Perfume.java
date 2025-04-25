@@ -79,8 +79,9 @@ public class Perfume {
 
     // Definir o estoque, ajustando a disponibilidade do perfume
     public void setStock(int stock) {
-        if (stock < 0) {
-            throw new IllegalArgumentException("Estoque não pode ser negativo");
+        if (stock < 0)
+        {
+        	throw new IllegalArgumentException("Estoque não pode ser negativo");
         }
         this.stock = stock;
         this.available = stock > 0;

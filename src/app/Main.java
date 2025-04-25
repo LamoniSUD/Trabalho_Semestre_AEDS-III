@@ -8,7 +8,7 @@ import io.Ler;
 
 public class Main {
     private Scanner scan = new Scanner(System.in);
-    private Escrever escrever = new Escrever();
+    private Escrever escrever = new Escrever(0);
     private Ler ler = new Ler();
 
     public void menu() {

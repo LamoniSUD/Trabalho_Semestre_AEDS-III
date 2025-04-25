@@ -16,13 +16,18 @@ class Node {
     }
 }
 
-public class BPlusTree {
+public class Arvore_BPlus {
     private final int order;
     private Node root;
+    private static final int DEFAULT_ORDER = 4; // Ordem padrão
 
-    public BPlusTree(int order) {
+    public Arvore_BPlus(int order) {
         this.order = order;
         root = new Node(true); // A árvore começa com um nó folha.
+    }
+
+    public Arvore_BPlus() {
+        this(DEFAULT_ORDER); // Usa a ordem padrão
     }
 
     public void insert(Perfume perfume) {
@@ -56,26 +61,23 @@ public class BPlusTree {
         Node newLeaf = new Node(true);
         int mid = leaf.perfumes.size() / 2;
 
-        // Divida o nó de folhas em dois
         newLeaf.perfumes = new ArrayList<>(leaf.perfumes.subList(mid, leaf.perfumes.size()));
         leaf.perfumes = new ArrayList<>(leaf.perfumes.subList(0, mid));
 
         if (leaf == root) {
-            // Se o nó folha for a raiz, cria um novo nó raiz.
             Node newRoot = new Node(false);
-            newRoot.perfumes.add(newLeaf.perfumes.get(0));  // A chave intermediária
+            newRoot.perfumes.add(newLeaf.perfumes.get(0));
             newRoot.children.add(leaf);
             newRoot.children.add(newLeaf);
             root = newRoot;
         } else {
-            // Caso contrário, insere a chave intermediária no nó pai.
             insertInParent(leaf, newLeaf);
         }
     }
 
     private void insertInParent(Node oldLeaf, Node newLeaf) {
         Node parent = findParent(root, oldLeaf);
-        parent.perfumes.add(newLeaf.perfumes.get(0));  // A chave intermediária
+        parent.perfumes.add(newLeaf.perfumes.get(0));
         parent.children.add(newLeaf);
 
         parent.perfumes.sort((p1, p2) -> Integer.compare(p1.getId(), p2.getId()));
@@ -89,7 +91,6 @@ public class BPlusTree {
         Node newParent = new Node(false);
         int mid = parent.perfumes.size() / 2;
 
-        // Divida o nó pai em dois
         newParent.perfumes = new ArrayList<>(parent.perfumes.subList(mid + 1, parent.perfumes.size()));
         parent.perfumes = new ArrayList<>(parent.perfumes.subList(0, mid));
 
@@ -97,7 +98,6 @@ public class BPlusTree {
         parent.children = new ArrayList<>(parent.children.subList(0, mid + 1));
 
         if (parent == root) {
-            // Se o nó pai for a raiz, cria um novo nó raiz.
             Node newRoot = new Node(false);
             newRoot.perfumes.add(parent.perfumes.get(mid));
             newRoot.children.add(parent);

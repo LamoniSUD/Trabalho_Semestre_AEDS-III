@@ -1,13 +1,15 @@
+package io;
+
 import java.time.LocalDate;
 import java.util.Scanner;
-import Structures.BPlusTree;
+import Structures.Arvore_BPlus;
 import Models.Perfume;
 
 public class Escrever {
-    private BPlusTree arvore;
+    private Arvore_BPlus arvore;
 
     public Escrever(int ordem) {
-        arvore = new BPlusTree(); // Ordem ainda não está sendo usada
+        arvore = new Arvore_BPlus(); // Ordem ainda não está sendo usada
     }
 
     public void write(Scanner scan) {
