@@ -1,5 +1,6 @@
 package Structures;
 
+import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
 import Models.Perfume;
@@ -25,13 +26,14 @@ public class Arvore_BPlus {
 
     public Arvore_BPlus(int order) {
         this.order = order;
-        root = new Node(true);
+        root = new Node(true); // A árvore começa com uma raiz do tipo folha
     }
 
     public Arvore_BPlus() {
         this(DEFAULT_ORDER);
     }
 
+    // Método para inserir um perfume na árvore
     public void insert(Perfume perfume) {
         Node leaf = findLeaf(root, perfume.getId());
         insertIntoLeaf(leaf, perfume);
@@ -179,8 +181,6 @@ public class Arvore_BPlus {
             parent.children.remove(right);
             if (index < parent.perfumes.size()) parent.perfumes.remove(index);
         }
-
-        // Você pode implementar rebalanceamento do pai se quiser propagação
     }
 
     private Node findLeft(Node leaf) {
@@ -208,5 +208,27 @@ public class Arvore_BPlus {
 
     private Node findLeafWithId(int id) {
         return findLeaf(root, id);
+    }
+
+    // Métodos para salvar e carregar a árvore em um arquivo
+    public void salvarParaArquivo(String caminhoArquivo) throws IOException {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(caminhoArquivo))) {
+            oos.writeObject(this.root); // Salva a raiz (a árvore toda é referenciada)
+        } catch (IOException e) {
+            System.err.println("Erro ao salvar a árvore no arquivo: " + e.getMessage());
+            throw e;  // Repassa a exceção
+        }
+    }
+
+    public void carregarDeArquivo(String caminhoArquivo) throws IOException, ClassNotFoundException {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(caminhoArquivo))) {
+            this.root = (Node) ois.readObject(); // Recarrega a árvore completa
+        } catch (IOException e) {
+            System.err.println("Erro ao carregar a árvore do arquivo: " + e.getMessage());
+            throw e;  // Repassa a exceção
+        } catch (ClassNotFoundException e) {
+            System.err.println("Erro ao encontrar a classe durante a desserialização: " + e.getMessage());
+            throw e;  // Repassa a exceção
+        }
     }
 }
