@@ -40,6 +40,11 @@ public class Perfume {
         this.stock = stock;
         this.date = date;
     }
+    
+    public int compareTo(Perfume outro) {
+        return Integer.compare(this.id, outro.getId());
+    }
+
 
     public int getId() {
         return id;
