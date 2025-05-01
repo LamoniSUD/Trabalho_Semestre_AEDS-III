@@ -3,7 +3,7 @@ import java.io.*;
 import java.time.LocalDate;
 import java.util.Random;
 
-public class Perfume {
+public class Perfume implements Serializable{
     private int id;
     private boolean available;
     private String[] info;

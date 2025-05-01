@@ -5,10 +5,11 @@ import java.util.ArrayList;
 import java.util.List;
 import Models.Perfume;
 
-class Node {
+class Node implements Serializable {
     boolean isLeaf;
-    List<Perfume> perfumes;
-    List<Node> children;
+    List <Long> posicoesArquivo = new ArrayList<>();
+    List <Perfume> perfumes;
+    List <Node> children;
     Node next; // Correção: ligação entre folhas
 
     public Node(boolean isLeaf) {
@@ -230,5 +231,14 @@ public class Arvore_BPlus {
             System.err.println("Erro ao encontrar a classe durante a desserialização: " + e.getMessage());
             throw e;  // Repassa a exceção
         }
+    }
+    public long buscarPosicao(int id) {
+        Node folha = findLeaf(root, id);
+        for (int i = 0; i < folha.perfumes.size(); i++) {
+            if (folha.perfumes.get(i).getId() == id) {
+                return folha.posicoesArquivo.get(i);  // Lista que você já criou
+            }
+        }
+        return -1;  // Ou lance uma exceção
     }
 }
