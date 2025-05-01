@@ -1,159 +1,107 @@
 package app;
+
 import java.io.*;
 import java.util.Scanner;
-
 import Models.Perfume;
-import io.Escrever;
-import io.Ler;
+import Services.GerenciadorPerfumes;
+import Structures.Arvore_BPlus;
 
 public class Main {
-    private Scanner scan = new Scanner(System.in);
-    private Escrever escrever = new Escrever(0);
-    private Ler ler = new Ler();
+    private final Scanner scan = new Scanner(System.in);
+    private final Arvore_BPlus arvore = new Arvore_BPlus(3); // Ordem 3
+    private final GerenciadorPerfumes gerenciador = new GerenciadorPerfumes(arvore, "perfumes.dat");
+
+    public static void main(String[] args) {
+        new Main().menu();
+    }
 
     public void menu() {
         while (true) {
-            System.out.println("\nMenu:");
-            System.out.println("1. Add a Parfum in stock");
-            System.out.println("2. Show Parfums in Stock");
-            System.out.println("3. Update perfume");
-            System.out.println("4. Delete the archive");
-            System.out.println("5. Show Out of Stock Parfums");
-            System.out.println("6. Quit");
-            System.out.print("Choose your option: ");
+            System.out.println("\n=== MENU ===");
+            System.out.println("1. Adicionar perfume");
+            System.out.println("2. Listar perfumes");
+            System.out.println("3. Atualizar perfume");
+            System.out.println("4. Remover perfume");
+            System.out.println("5. Sair");
+            System.out.print("Opção: ");
 
             int opcao = scan.nextInt();
-            scan.nextLine();
+            scan.nextLine(); // Limpar buffer
 
             switch (opcao) {
-                case 1:
-                    escrever.write(scan);
-                    break;
-                case 2:
-                    ler.readIn();
-                    break;
-                case 3:
-                    System.out.println("Escreva o Código ou nome do Produto");
-                    String term = scan.nextLine();
-                    Perfume parfum = searchPerfume(term);
-
-                    if (parfum != null) {
-                        System.out.println(parfum.toString());
-                        update(term);
-                    } else {
-                        System.out.println("Perfume não encontrado.");
-                    }
-                    break;
-                case 4:
-                    System.out.println("Deseja Deletar arquivo completamente? sim/nao");
-                    String choice = scan.nextLine();
-                    if (choice.equalsIgnoreCase("sim")) {
-                        deletarArquivo();
-                    }
-                    break;
-                case 5:
-                    ler.readOut();
-                    break;
-                case 6:
+                case 1 -> adicionarPerfume();
+                case 2 -> listarPerfumes();
+                case 3 -> atualizarPerfume();
+                case 4 -> removerPerfume();
+                case 5 -> { 
                     System.out.println("Saindo...");
                     return;
-                default:
-                    System.out.println("Opção inválida. Tente novamente.");
+                }
+                default -> System.out.println("Opção inválida!");
             }
         }
     }
 
-    private void deletarArquivo() {
-        File arquivo = new File("archive.bin");
-        if (arquivo.exists()) {
-            System.out.println("Arquivo Existe");
-        } else {
-            System.out.println("O arquivo não existe.");
-        }
-        if (arquivo.delete()) {
-            System.out.println("Arquivo Deletado com Sucesso");
-        } else {
-            System.out.println("Falha ao deletar o arquivo.");
+    private void adicionarPerfume() {
+        try {
+            System.out.print("ID: ");
+            int id = scan.nextInt();
+            scan.nextLine();
+            
+            System.out.print("Nome: ");
+            String nome = scan.nextLine();
+            
+            gerenciador.criar(new Perfume(id, nome));
+            System.out.println("Perfume adicionado!");
+        } catch (IOException e) {
+            System.err.println("Erro ao adicionar: " + e.getMessage());
         }
     }
 
-    public Perfume searchPerfume(String searchTerm) {
-        try (RandomAccessFile raf = new RandomAccessFile("archive.bin", "rw")) {
-            long fileLength = raf.length();
-
-            while (raf.getFilePointer() < fileLength) {
-                int size = raf.readInt();
-                byte[] data = new byte[size];
-                raf.readFully(data);
-                Perfume perfume = new Perfume();
-                perfume = Perfume.fromByteArray(data);
-
-                if (searchTerm.equalsIgnoreCase(perfume.getName())
-                        || searchTerm.equals(String.valueOf(perfume.getId()))) {
-                    return perfume;
-                }
+    private void listarPerfumes() {
+        try {
+            System.out.println("\n=== PERFUMES ===");
+            for (int id = 1; id <= 1000; id++) { // Ajuste o range conforme necessário
+                Perfume p = gerenciador.buscar(id);
+                if (p != null) System.out.println(p);
             }
         } catch (IOException e) {
-            System.out.println("Erro ao ler o arquivo: " + e.getMessage());
+            System.err.println("Erro ao listar: " + e.getMessage());
         }
-        return null;
     }
 
-    public void update(String term) {
-        try (RandomAccessFile raf = new RandomAccessFile("archive.bin", "rw")) {
-            long fileLength = raf.length();
-
-            while (raf.getFilePointer() < fileLength) {
-                int size = raf.readInt();
-                byte[] data = new byte[size];
-                raf.readFully(data);
-                Perfume perfume = new Perfume();
-                perfume = Perfume.fromByteArray(data);
-
-                if (term.equalsIgnoreCase(perfume.getName()) || term.equals(String.valueOf(perfume.getId()))) {
-                    System.out.println("O que deseja alterar?\n1- Nome\n2- Marca\n3- Estoque\n4- Valor");
-                    int opcao = scan.nextInt();
-                    scan.nextLine();
-
-                    switch (opcao) {
-                        case 1:
-                            System.out.println("Escreva o novo Nome: ");
-                            perfume.setName(scan.nextLine());
-                            break;
-                        case 2:
-                            System.out.println("Escreva a nova Marca: ");
-                            perfume.setMarca(scan.nextLine());
-                            break;
-                        case 3:
-                            System.out.println("Escreva a nova quantidade em Estoque: ");
-                            perfume.setStock(scan.nextInt());
-                            break;
-                        case 4:
-                            System.out.println("Escreva o novo valor: ");
-                            perfume.setValue(scan.nextInt());
-                            break;
-                        default:
-                            System.out.println("Opção inválida.");
-                            return;
-                    }
-
-                    raf.seek(raf.getFilePointer() - size - 4);
-                    byte[] updatedData = perfume.toByteArray();
-                    raf.writeInt(updatedData.length);
-                    raf.write(updatedData);
-
-                    System.out.println("Perfume atualizado com sucesso!");
-                    return;
-                }
+    private void atualizarPerfume() {
+        try {
+            System.out.print("ID para atualizar: ");
+            int id = scan.nextInt();
+            scan.nextLine();
+            
+            Perfume existente = gerenciador.buscar(id);
+            if (existente == null) {
+                System.out.println("Perfume não encontrado!");
+                return;
             }
+            
+            System.out.print("Novo nome: ");
+            String novoNome = scan.nextLine();
+            
+            gerenciador.atualizar(new Perfume(id, novoNome));
+            System.out.println("Perfume atualizado!");
         } catch (IOException e) {
-            System.out.println("Erro ao ler o arquivo: " + e.getMessage());
+            System.err.println("Erro ao atualizar: " + e.getMessage());
         }
-        System.out.println("Perfume não encontrado.");
     }
 
-    public static void main(String[] args) {
-        Main main = new Main();
-        main.menu();
+    private void removerPerfume() {
+        try {
+            System.out.print("ID para remover: ");
+            int id = scan.nextInt();
+            scan.nextLine();
+            
+            gerenciador.deletar(id);
+            System.out.println("Perfume removido!");
+        } catch (IOException e) {
+            System.err.println("Erro ao remover: " + e.getMessage());
+        }
     }
 }

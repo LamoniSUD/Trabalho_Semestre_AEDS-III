@@ -7,10 +7,10 @@ import Models.Perfume;
 
 class Node implements Serializable {
     boolean isLeaf;
-    List <Long> posicoesArquivo = new ArrayList<>();
-    List <Perfume> perfumes;
-    List <Node> children;
-    Node next; // Correção: ligação entre folhas
+    List<Long> posicoesArquivo = new ArrayList<>();
+    List<Perfume> perfumes;
+    List<Node> children;
+    Node next; // Ligação entre folhas
 
     public Node(boolean isLeaf) {
         this.isLeaf = isLeaf;
@@ -27,14 +27,13 @@ public class Arvore_BPlus {
 
     public Arvore_BPlus(int order) {
         this.order = order;
-        root = new Node(true); // A árvore começa com uma raiz do tipo folha
+        root = new Node(true);
     }
 
     public Arvore_BPlus() {
         this(DEFAULT_ORDER);
     }
 
-    // Método para inserir um perfume na árvore
     public void insert(Perfume perfume) {
         Node leaf = findLeaf(root, perfume.getId());
         insertIntoLeaf(leaf, perfume);
@@ -44,9 +43,8 @@ public class Arvore_BPlus {
         }
     }
 
-    private Node findLeaf(Node node, int id) {
+    public Node findLeaf(Node node, int id) {
         if (node.isLeaf) return node;
-
         for (int i = 0; i < node.perfumes.size(); i++) {
             if (id < node.perfumes.get(i).getId()) {
                 return findLeaf(node.children.get(i), id);
@@ -154,7 +152,6 @@ public class Arvore_BPlus {
         Node left = findLeft(leaf);
         Node right = leaf.next;
         Node parent = findParent(root, leaf);
-
         int index = parent.children.indexOf(leaf);
 
         if (left != null && left.perfumes.size() > minKeys) {
@@ -211,34 +208,35 @@ public class Arvore_BPlus {
         return findLeaf(root, id);
     }
 
-    // Métodos para salvar e carregar a árvore em um arquivo
     public void salvarParaArquivo(String caminhoArquivo) throws IOException {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(caminhoArquivo))) {
-            oos.writeObject(this.root); // Salva a raiz (a árvore toda é referenciada)
+            oos.writeObject(this.root);
         } catch (IOException e) {
             System.err.println("Erro ao salvar a árvore no arquivo: " + e.getMessage());
-            throw e;  // Repassa a exceção
+            throw e;
         }
     }
 
     public void carregarDeArquivo(String caminhoArquivo) throws IOException, ClassNotFoundException {
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(caminhoArquivo))) {
-            this.root = (Node) ois.readObject(); // Recarrega a árvore completa
-        } catch (IOException e) {
-            System.err.println("Erro ao carregar a árvore do arquivo: " + e.getMessage());
-            throw e;  // Repassa a exceção
-        } catch (ClassNotFoundException e) {
-            System.err.println("Erro ao encontrar a classe durante a desserialização: " + e.getMessage());
-            throw e;  // Repassa a exceção
+            this.root = (Node) ois.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("Erro ao carregar a árvore: " + e.getMessage());
+            throw e;
         }
     }
+
     public long buscarPosicao(int id) {
         Node folha = findLeaf(root, id);
         for (int i = 0; i < folha.perfumes.size(); i++) {
             if (folha.perfumes.get(i).getId() == id) {
-                return folha.posicoesArquivo.get(i);  // Lista que você já criou
+                return folha.posicoesArquivo.get(i);
             }
         }
-        return -1;  // Ou lance uma exceção
+        return -1;
+    }
+
+    public Node getRoot() {
+        return this.root;
     }
 }
