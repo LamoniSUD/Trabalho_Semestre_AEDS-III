@@ -8,8 +8,13 @@ import Structures.Arvore_BPlus;
 
 public class Main {
     private final Scanner scan = new Scanner(System.in);
-    private final Arvore_BPlus arvore = new Arvore_BPlus(3); // Ordem 3
-    private final GerenciadorPerfumes gerenciador = new GerenciadorPerfumes(arvore, "perfumes.dat");
+    private final Arvore_BPlus arvore;
+    private final GerenciadorPerfumes gerenciador;
+
+    public Main() {
+        this.arvore = new Arvore_BPlus(3); // Ordem 3
+        this.gerenciador = new GerenciadorPerfumes(arvore, "perfumes.dat");
+    }
 
     public static void main(String[] args) {
         new Main().menu();

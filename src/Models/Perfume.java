@@ -1,149 +1,207 @@
 package Models;
+
 import java.io.*;
-import java.time.LocalDate;
-import java.util.Random;
+import java.nio.*;
+import java.nio.charset.*;
+import java.util.*;
+import java.util.concurrent.atomic.*;
 
-public class Perfume implements Serializable{
-    private int id;
-    private boolean available;
-    private String[] info;
-    private int value;  // Valor em centavos
-    private int stock;
-    private LocalDate date;
+public class Perfume implements Serializable, Comparable<Perfume> {
+    // Campos obrigatórios
+    private final int id;
+    private String nome;
+    private String marca;
+    private double valor;
+    private int estoque;
+    
+    // Novos campos para controle
+    private final AtomicInteger version = new AtomicInteger(0);
+    private final long createdAt;
+    private volatile long lastUpdated;
+    
+    // Valores padrão
+    private static final int MAX_NOME = 100;
+    private static final int MAX_MARCA = 50;
+    private static final double VALOR_MINIMO = 0.01;
 
-    public Perfume() {
-        this(-1, false, "", "", -1, 0, LocalDate.now());  // Valor padrão para stock
-    }
-
-    public Perfume(String name, String marca, int value, LocalDate date) {
-        Random rand = new Random();
-        int ano = LocalDate.now().getYear();
-        int numeroAleatorio = rand.nextInt(9000) + 1000;
-        this.id = Integer.parseInt(ano + "" + numeroAleatorio);
-
-        this.value = value;
-        this.available = true;
-        this.info = new String[2];
-        this.info[0] = name;
-        this.info[1] = marca;
-        this.date = date;
-        this.stock = 0;  // Default stock as 0, will be set later
-    }
-
-    public Perfume(int id, boolean available, String name, String marca, int value, int stock, LocalDate date) {
+    // Construtores
+    public Perfume(int id, String nome, String marca, double valor, int estoque) {
+        validarCampos(id, nome, marca, valor, estoque);
+        
         this.id = id;
-        this.available = available;
-        this.info = new String[2];
-        this.info[0] = name;
-        this.info[1] = marca;
-        this.value = value;
-        this.stock = stock;
-        this.date = date;
+        this.nome = nome.trim();
+        this.marca = marca.trim();
+        this.valor = valor;
+        this.estoque = estoque;
+        this.createdAt = System.currentTimeMillis();
+        this.lastUpdated = this.createdAt;
+    }
+
+    // Validação rigorosa
+    private void validarCampos(int id, String nome, String marca, double valor, int estoque) {
+        if (id <= 0) throw new IllegalArgumentException("ID inválido");
+        if (nome == null || nome.trim().isEmpty() || nome.length() > MAX_NOME) {
+            throw new IllegalArgumentException("Nome inválido");
+        }
+        if (marca == null || marca.trim().isEmpty() || marca.length() > MAX_MARCA) {
+            throw new IllegalArgumentException("Marca inválida");
+        }
+        if (valor < VALOR_MINIMO) throw new IllegalArgumentException("Valor inválido");
+        if (estoque < 0) throw new IllegalArgumentException("Estoque não pode ser negativo");
+    }
+
+    // ---- Métodos de Acesso ----
+    public int getId() { return id; }
+    
+    public String getNome() { return nome; }
+    public synchronized void setNome(String nome) {
+        validarNome(nome);
+        this.nome = nome.trim();
+        atualizar();
     }
     
-    public int compareTo(Perfume outro) {
-        return Integer.compare(this.id, outro.getId());
+    public String getMarca() { return marca; }
+    public synchronized void setMarca(String marca) {
+        validarMarca(marca);
+        this.marca = marca.trim();
+        atualizar();
     }
-
-
-    public int getId() {
-        return id;
+    
+    public double getValor() { return valor; }
+    public synchronized void setValor(double valor) {
+        validarValor(valor);
+        this.valor = valor;
+        atualizar();
     }
-
-    public boolean isAvailable() {
-        return available;
+    
+    public int getEstoque() { return estoque; }
+    public synchronized void setEstoque(int estoque) {
+        validarEstoque(estoque);
+        this.estoque = estoque;
+        atualizar();
     }
-
-    public String getName() {
-        return info[0];
+    
+    // ---- Controle de Versão ----
+    public int getVersion() { return version.get(); }
+    public synchronized void incrementVersion() { 
+        version.incrementAndGet(); 
+        lastUpdated = System.currentTimeMillis();
     }
-
-    public void setName(String name) {
-        this.info[0] = name;
+    
+    // ---- Serialização Otimizada ----
+    public byte[] toByteArray() throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream(256);
+        DataOutputStream dos = new DataOutputStream(baos);
+        
+        dos.writeInt(id);
+        dos.writeUTF(nome);
+        dos.writeUTF(marca);
+        dos.writeDouble(valor);
+        dos.writeInt(estoque);
+        dos.writeInt(version.get());
+        dos.writeLong(createdAt);
+        dos.writeLong(lastUpdated);
+        
+        return baos.toByteArray();
     }
-
-    public String getMarca() {
-        return info[1];
+    
+    public static Perfume fromByteArray(byte[] data) throws IOException {
+        ByteArrayInputStream bais = new ByteArrayInputStream(data);
+        DataInputStream dis = new DataInputStream(bais);
+        
+        int id = dis.readInt();
+        String nome = dis.readUTF();
+        String marca = dis.readUTF();
+        double valor = dis.readDouble();
+        int estoque = dis.readInt();
+        int version = dis.readInt();
+        long createdAt = dis.readLong();
+        long lastUpdated = dis.readLong();
+        
+        Perfume p = new Perfume(id, nome, marca, valor, estoque);
+        p.version.set(version);
+        p.lastUpdated = lastUpdated;
+        return p;
     }
-
-    public void setMarca(String marca) {
-        this.info[1] = marca;
-    }
-
-    public float getValue() {
-        return value / 100.0f;  // Convertendo de centavos para reais
-    }
-
-    public void setValue(int value) {
-        this.value = value;
-    }
-
-    public int getStock() {
-        return stock;
-    }
-
-    // Definir o estoque, ajustando a disponibilidade do perfume
-    public void setStock(int stock) {
-        if (stock < 0)
-        {
-        	throw new IllegalArgumentException("Estoque não pode ser negativo");
+    
+    // ---- Métodos de Negócio ----
+    public synchronized void aplicarDesconto(double percentual) {
+        if (percentual <= 0 || percentual > 100) {
+            throw new IllegalArgumentException("Percentual inválido");
         }
-        this.stock = stock;
-        this.available = stock > 0;
+        this.valor *= (1 - (percentual/100));
+        atualizar();
     }
-
-    public LocalDate getDate() {
-        return date;
+    
+    public synchronized boolean reservarEstoque(int quantidade) {
+        if (quantidade <= 0 || quantidade > estoque) return false;
+        estoque -= quantidade;
+        atualizar();
+        return true;
     }
-
-    public void setDate(LocalDate date) {
-        this.date = date;
+    
+    // ---- Controle de Tempo ----
+    public long getCreatedAt() { return createdAt; }
+    public long getLastUpdated() { return lastUpdated; }
+    private void atualizar() { 
+        lastUpdated = System.currentTimeMillis();
+        incrementVersion();
     }
-
-    // Converte o objeto para um byte array
-    public byte[] toByteArray() {
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             DataOutputStream dos = new DataOutputStream(baos)) {
-            dos.writeInt(this.id);
-            dos.writeBoolean(this.available);
-            dos.writeUTF(this.info[0]);
-            dos.writeUTF(this.info[1]);
-            dos.writeInt(this.value);
-            dos.writeInt(this.stock);
-            dos.writeLong(this.date.toEpochDay());
-            return baos.toByteArray();
-        } catch (IOException e) {
-            System.out.println("Erro ao converter para byte array: " + e.getMessage());
-        }
-        return new byte[0];
+    
+    // ---- Comparação e Identidade ----
+    @Override
+    public int compareTo(Perfume o) {
+        return Integer.compare(this.id, o.id);
     }
-
-    // Converte um byte array de volta para um objeto Perfume
-    public static Perfume fromByteArray(byte[] data) {
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
-             DataInputStream dis = new DataInputStream(bais)) {
-            int id = dis.readInt();
-            boolean available = dis.readBoolean();
-            String name = dis.readUTF();
-            String marca = dis.readUTF();
-            int value = dis.readInt();
-            int stock = dis.readInt();
-            LocalDate date = LocalDate.ofEpochDay(dis.readLong());
-            return new Perfume(id, available, name, marca, value, stock, date);
-        } catch (IOException e) {
-            System.out.println("Erro ao converter byte array para Perfume: " + e.getMessage());
-        }
-        return null;
+    
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (!(obj instanceof Perfume)) return false;
+        return this.id == ((Perfume)obj).id;
     }
-
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
+    
     @Override
     public String toString() {
-        return "\nID........: " + this.id +
-                "\nDisponível: " + this.available +
-                "\nNome......: " + this.info[0] +
-                "\nMarca.....: " + this.info[1] +
-                "\nPreço.....: R$ " + String.format("%.2f", getValue()) +  // Formata o preço para exibição
-                "\nEstoque...: " + this.stock +
-                "\nData......: " + this.date;
+        return String.format(
+            "Perfume[id=%d, nome='%s', marca='%s', valor=%.2f, estoque=%d, versão=%d]",
+            id, nome, marca, valor, estoque, version.get()
+        );
+    }
+    
+    // ---- Validações Específicas ----
+    private void validarNome(String nome) {
+        if (nome == null || nome.trim().isEmpty()) {
+            throw new IllegalArgumentException("Nome não pode ser vazio");
+        }
+        if (nome.length() > MAX_NOME) {
+            throw new IllegalArgumentException("Nome muito longo");
+        }
+    }
+    
+    private void validarMarca(String marca) {
+        if (marca == null || marca.trim().isEmpty()) {
+            throw new IllegalArgumentException("Marca não pode ser vazia");
+        }
+        if (marca.length() > MAX_MARCA) {
+            throw new IllegalArgumentException("Marca muito longa");
+        }
+    }
+    
+    private void validarValor(double valor) {
+        if (valor < VALOR_MINIMO) {
+            throw new IllegalArgumentException("Valor abaixo do mínimo permitido");
+        }
+    }
+    
+    private void validarEstoque(int estoque) {
+        if (estoque < 0) {
+            throw new IllegalArgumentException("Estoque não pode ser negativo");
+        }
     }
 }
