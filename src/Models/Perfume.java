@@ -29,17 +29,18 @@ public class Perfume implements Serializable, Comparable<Perfume> {
         validarCampos(id, nome, marca, valor, estoque);
         
         this.id = id;
-        this.nome = nome.trim();
+        this.nome = nome.trim();            // Método "trim()" retira espaços da String, circulando erros
         this.marca = marca.trim();
         this.valor = valor;
         this.estoque = estoque;
-        this.createdAt = System.currentTimeMillis();
+        this.createdAt = System.currentTimeMillis();    // Atribuindo valor da data específica no momento de criação do Objeto
         this.lastUpdated = this.createdAt;
     }
 
     // Validação rigorosa
+    // Verificação de parâmetros para criação do objeto sem falhas
     private void validarCampos(int id, String nome, String marca, double valor, int estoque) {
-        if (id <= 0) throw new IllegalArgumentException("ID inválido");
+        if (id <= 0) throw new IllegalArgumentException("ID inválido");               
         if (nome == null || nome.trim().isEmpty() || nome.length() > MAX_NOME) {
             throw new IllegalArgumentException("Nome inválido");
         }
@@ -54,7 +55,7 @@ public class Perfume implements Serializable, Comparable<Perfume> {
     public int getId() { return id; }
     
     public String getNome() { return nome; }
-    public synchronized void setNome(String nome) {
+    public synchronized void setNome(String nome) {        // "Syncronized" Garante que o método será executado uma Thread por vez 
         validarNome(nome);
         this.nome = nome.trim();
         atualizar();
@@ -149,7 +150,7 @@ public class Perfume implements Serializable, Comparable<Perfume> {
     }
     
     // ---- Comparação e Identidade ----
-    @Override
+    @Override   //Métodos Importados para comparativo
     public int compareTo(Perfume o) {
         return Integer.compare(this.id, o.id);
     }
