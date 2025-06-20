@@ -1,265 +1,292 @@
 package Structures;
 
-import Models.Perfume;
-import java.io.*;
-import java.nio.ByteBuffer;
 import java.util.*;
-import java.util.concurrent.locks.*;
-import java.util.concurrent.atomic.*;
 
 public class Arvore_BPlus {
-    // Configurações
-    private final int ordem;
-    private Node raiz;
-    private final ReadWriteLock arvoreLock = new ReentrantReadWriteLock(true);
-    private final AtomicInteger contadorOperacoes = new AtomicInteger(0);
-    private static final double FATOR_CARGA_MINIMO = 0.4;
+    private No raiz;
+    private int ordem;
 
-    // Classe Node otimizada
-    private class Node implements Serializable {
-        boolean isFolha;
-        ArrayList<Integer> chaves;
-        ArrayList<Long> posicoes;  // Posições no arquivo
-        ArrayList<Node> filhos;
-        Node proximo;  // Encadeamento para folhas
-        AtomicInteger contadorAcessos = new AtomicInteger(0);
-
-        Node(boolean isFolha) {
-            this.isFolha = isFolha;
-            this.chaves = new ArrayList<>(ordem + 1);
-            this.posicoes = new ArrayList<>(ordem + 1);
-            this.filhos = isFolha ? null : new ArrayList<>(ordem + 2);
-        }
-    }
-
-    // Construtor
     public Arvore_BPlus(int ordem) {
-        if (ordem < 2) throw new IllegalArgumentException("Ordem mínima é 2");
+        if (ordem < 2) {
+            throw new IllegalArgumentException("A ordem da árvore B+ deve ser pelo menos 2.");
+        }
         this.ordem = ordem;
-        this.raiz = new Node(true);
+        this.raiz = new No(ordem, true);
     }
 
-    // ---- Operações Principais ----
-    public void insertComPosicao(Perfume perfume, long posicaoArquivo) {
-        arvoreLock.writeLock().lock();
-        try {
-            Node folha = encontrarFolha(raiz, perfume.getId());
-            inserirNaFolha(folha, perfume.getId(), posicaoArquivo);
-            
-            if (folha.chaves.size() > ordem) {
-                dividirFolha(folha);
-            }
-            contadorOperacoes.incrementAndGet();
-        } finally {
-            arvoreLock.writeLock().unlock();
+    public void inserir(int id, long posicao) {
+        if (id <= 0) {
+            throw new IllegalArgumentException("ID deve ser um número positivo.");
         }
-    }
 
-    public Long buscarPosicao(int id) {
-        arvoreLock.readLock().lock();
-        try {
-            Node folha = encontrarFolha(raiz, id);
-            if (folha == null) return null;
+        if (raiz.numEntradas == ordem - 1) { 
+            No s = new No(ordem, false);
+            s.filhos[0] = raiz;          
             
-            int index = buscaBinaria(folha.chaves, id);
-            if (index >= 0) {
-                folha.contadorAcessos.incrementAndGet();
-                return folha.posicoes.get(index);
-            }
-            return null;
-        } finally {
-            arvoreLock.readLock().unlock();
-        }
-    }
-
-    public void atualizarPosicao(int id, long posicaoAntiga, long posicaoNova) {
-        arvoreLock.writeLock().lock();
-        try {
-            Node folha = encontrarFolha(raiz, id);
-            if (folha == null) return;
+            int chavePromovida = raiz.chaves[(ordem - 1) / 2];
             
-            int index = folha.posicoes.indexOf(posicaoAntiga);
-            if (index != -1 && folha.chaves.get(index) == id) {
-                folha.posicoes.set(index, posicaoNova);
-                contadorOperacoes.incrementAndGet();
+            No novoIrmao = new No(ordem, raiz.isFolha);
+            
+            int j = 0;
+            for (int i = (ordem - 1) / 2 + 1; i < ordem - 1; i++) {
+                novoIrmao.chaves[j] = raiz.chaves[i];
+                novoIrmao.valores[j] = raiz.valores[i];
+                j++;
             }
-        } finally {
-            arvoreLock.writeLock().unlock();
-        }
-    }
+            novoIrmao.numEntradas = j;
 
-    // ---- Métodos Auxiliares ----
-    private Node encontrarFolha(Node no, int id) {
-        if (no == null) return null;
-        
-        // Otimização: cache para nós frequentemente acessados
-        if (no.contadorAcessos.get() > 1000 && !no.isFolha) {
-            for (int i = 0; i < no.chaves.size(); i++) {
-                if (id <= no.chaves.get(i)) {
-                    return encontrarFolha(no.filhos.get(i), id);
+            if (!raiz.isFolha) {
+                j = 0;
+                for (int i = (ordem - 1) / 2 + 1; i <= ordem - 1; i++) { 
+                    novoIrmao.filhos[j] = raiz.filhos[i];
+                    raiz.filhos[i] = null;
+                    j++;
                 }
             }
-            return encontrarFolha(no.filhos.get(no.filhos.size() - 1), id);
-        }
-
-        if (no.isFolha) return no;
-        
-        int i = 0;
-        while (i < no.chaves.size() && id > no.chaves.get(i)) {
-            i++;
-        }
-        
-        return encontrarFolha(no.filhos.get(i), id);
-    }
-
-    private void inserirNaFolha(Node folha, int id, long posicao) {
-        int index = buscaBinaria(folha.chaves, id);
-        if (index >= 0) {
-            folha.posicoes.set(index, posicao); // Atualiza se existir
-        } else {
-            index = -(index + 1);
-            folha.chaves.add(index, id);
-            folha.posicoes.add(index, posicao);
-        }
-    }
-
-    private void dividirFolha(Node folha) {
-        Node novaFolha = new Node(true);
-        int meio = folha.chaves.size() / 2;
-        
-        // Divide chaves e posições
-        novaFolha.chaves = new ArrayList<>(folha.chaves.subList(meio, folha.chaves.size()));
-        novaFolha.posicoes = new ArrayList<>(folha.posicoes.subList(meio, folha.posicoes.size()));
-        
-        folha.chaves = new ArrayList<>(folha.chaves.subList(0, meio));
-        folha.posicoes = new ArrayList<>(folha.posicoes.subList(0, meio));
-        
-        // Atualiza encadeamento
-        novaFolha.proximo = folha.proximo;
-        folha.proximo = novaFolha;
-        
-        // Propaga para o pai
-        if (folha == raiz) {
-            Node novaRaiz = new Node(false);
-            novaRaiz.chaves.add(novaFolha.chaves.get(0));
-            novaRaiz.filhos.add(folha);
-            novaRaiz.filhos.add(novaFolha);
-            raiz = novaRaiz;
-        } else {
-            inserirNoPai(folha, novaFolha, novaFolha.chaves.get(0));
-        }
-    }
-
-    // ---- Balanceamento Automático ----
-    private void balancearArvore() {
-        arvoreLock.writeLock().lock();
-        try {
-            if (raiz.chaves.size() == 0 && !raiz.isFolha) {
-                raiz = raiz.filhos.get(0); // Reduz altura
-            }
-        } finally {
-            arvoreLock.writeLock().unlock();
-        }
-    }
-
-    // ---- Persistência Otimizada ----
-    public void salvarParaArquivo(String caminho) throws IOException {
-        arvoreLock.readLock().lock();
-        try (ObjectOutputStream oos = new ObjectOutputStream(
-             new BufferedOutputStream(new FileOutputStream(caminho)))) {
-            oos.writeObject(this.raiz);
-            oos.writeInt(this.ordem);
-            oos.writeInt(this.contadorOperacoes.get());
-        } finally {
-            arvoreLock.readLock().unlock();
-        }
-    }
-
-    public void carregarDeArquivo(String caminho) throws IOException, ClassNotFoundException {
-        arvoreLock.writeLock().lock();
-        try (ObjectInputStream ois = new ObjectInputStream(
-             new BufferedInputStream(new FileInputStream(caminho)))) {
-            this.raiz = (Node) ois.readObject();
-            int ordemArquivo = ois.readInt();
-            if (ordemArquivo != this.ordem) {
-                throw new IOException("Ordem inconsistente");
-            }
-            this.contadorOperacoes.set(ois.readInt());
-        } finally {
-            arvoreLock.writeLock().unlock();
-        }
-    }
-
-    // ---- Métodos de Busca Avançada ----
-    public List<Long> buscarIntervalo(int inicio, int fim) {
-        arvoreLock.readLock().lock();
-        try {
-            List<Long> resultados = new ArrayList<>();
-            Node folha = encontrarFolha(raiz, inicio);
             
-            while (folha != null) {
-                for (int i = 0; i < folha.chaves.size(); i++) {
-                    int chave = folha.chaves.get(i);
-                    if (chave >= inicio && chave <= fim) {
-                        resultados.add(folha.posicoes.get(i));
-                    } else if (chave > fim) {
-                        return resultados;
+            raiz.numEntradas = (ordem - 1) / 2;
+
+            s.chaves[0] = chavePromovida;
+            s.filhos[1] = novoIrmao;
+            s.numEntradas++;
+            
+            this.raiz = s;
+        }
+        
+        inserirEmNo(this.raiz, id, posicao);
+    }
+
+    private void inserirEmNo(No no, int id, long posicao) {
+        int i = no.numEntradas - 1;
+        
+        if (no.isFolha) {
+            while (i >= 0 && id < no.chaves[i]) {
+                no.chaves[i + 1] = no.chaves[i];
+                no.valores[i + 1] = no.valores[i];
+                i--;
+            }
+            no.chaves[i + 1] = id;
+            no.valores[i + 1] = posicao;
+            no.numEntradas++;
+        } else {
+            while (i >= 0 && id < no.chaves[i]) {
+                i--;
+            }
+            i++;
+
+            No filho = no.filhos[i];
+
+            if (filho.numEntradas == ordem - 1) {
+                int chavePromovida = filho.chaves[(ordem - 1) / 2];
+                
+                No novoFilho = new No(ordem, filho.isFolha);
+                
+                int k = 0;
+                for (int m = (ordem - 1) / 2 + 1; m < ordem - 1; m++) {
+                    novoFilho.chaves[k] = filho.chaves[m];
+                    novoFilho.valores[k] = filho.valores[m];
+                    k++;
+                }
+                novoFilho.numEntradas = k;
+
+                if (!filho.isFolha) {
+                    k = 0;
+                    for (int m = (ordem - 1) / 2 + 1; m <= ordem - 1; m++) { 
+                        novoFilho.filhos[k] = filho.filhos[m];
+                        filho.filhos[m] = null;
+                        k++;
                     }
                 }
-                folha = folha.proximo;
-            }
-            return resultados;
-        } finally {
-            arvoreLock.readLock().unlock();
-        }
-    }
+                
+                filho.numEntradas = (ordem - 1) / 2;
 
-    // ---- Utilitários ----
-    private int buscaBinaria(List<Integer> lista, int chave) {
-        int low = 0;
-        int high = lista.size() - 1;
-        
-        while (low <= high) {
-            int mid = (low + high) >>> 1;
-            int cmp = lista.get(mid).compareTo(chave);
-            
-            if (cmp < 0) {
-                low = mid + 1;
-            } else if (cmp > 0) {
-                high = mid - 1;
+                for (int idx = no.numEntradas - 1; idx >= i; idx--) {
+                    no.chaves[idx + 1] = no.chaves[idx];
+                }
+                
+                for (int idx = no.numEntradas; idx >= i + 1; idx--) {
+                    no.filhos[idx + 1] = no.filhos[idx];
+                }
+
+                no.chaves[i] = chavePromovida;
+                no.filhos[i + 1] = novoFilho;
+                no.numEntradas++;
+
+                if (id >= no.chaves[i]) {
+                    inserirEmNo(no.filhos[i + 1], id, posicao);
+                } else {
+                    inserirEmNo(no.filhos[i], id, posicao);
+                }
             } else {
-                return mid; // Encontrou
+                inserirEmNo(filho, id, posicao);
             }
         }
-        return -(low + 1); // Não encontrado
     }
 
-    // ---- Monitoramento ----
-    public Estatisticas getEstatisticas() {
-        return new Estatisticas(
-            contadorOperacoes.get(),
-            calcularProfundidade(raiz),
-            contarNos(raiz)
-        );
-    }
-
-    private int calcularProfundidade(Node no) {
-        if (no.isFolha) return 1;
-        return 1 + calcularProfundidade(no.filhos.get(0));
-    }
-
-    private int contarNos(Node no) {
-        if (no.isFolha) return 1;
-        int total = 1;
-        for (Node filho : no.filhos) {
-            total += contarNos(filho);
+    public long buscar(int id) {
+        No atual = raiz;
+        while (!atual.isFolha) {
+            int i = 0;
+            while (i < atual.numEntradas && id >= atual.chaves[i]) {
+                i++;
+            }
+            atual = atual.filhos[i];
         }
-        return total;
+
+        for (int i = 0; i < atual.numEntradas; i++) {
+            if (atual.chaves[i] == id) {
+                return atual.valores[i];
+            }
+        }
+        return -1;
+    }
+    
+    public int buscarIdPorPosicao(long position) {
+        return -1; 
     }
 
-    public record Estatisticas(
-        int totalOperacoes,
-        int profundidade,
-        int totalNos
-    ) {}
+    public void atualizarPosicao(int id, long novaPosicao) {
+        No atual = raiz;
+        while (!atual.isFolha) {
+            int i = 0;
+            while (i < atual.numEntradas && id >= atual.chaves[i]) {
+                i++;
+            }
+            atual = atual.filhos[i];
+        }
+
+        for (int i = 0; i < atual.numEntradas; i++) {
+            if (atual.chaves[i] == id) {
+                atual.valores[i] = novaPosicao;
+                return;
+            }
+        }
+        System.err.println("Aviso: ID " + id + " não encontrado na árvore para atualização de posição.");
+    }
+
+    public boolean remover(int id) {
+        No folha = buscarFolhaParaInsercao(raiz, id);
+        for (int i = 0; i < folha.numEntradas; i++) {
+            if (folha.chaves[i] == id) {
+                for (int j = i; j < folha.numEntradas - 1; j++) {
+                    folha.chaves[j] = folha.chaves[j + 1];
+                    folha.valores[j] = folha.valores[j + 1];
+                }
+                folha.numEntradas--;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void limpar() {
+        this.raiz = new No(ordem, true);
+    }
+
+    public List<Integer> buscarTodosIds() {
+        List<Integer> ids = new ArrayList<>();
+        Stack<No> stack = new Stack<>();
+        stack.push(raiz);
+
+        List<Integer> tempIds = new ArrayList<>(); 
+
+        while (!stack.isEmpty()) {
+            No atual = stack.pop();
+            if (atual.isFolha) {
+                for (int i = 0; i < atual.numEntradas; i++) {
+                    tempIds.add(atual.chaves[i]);
+                }
+            } else {
+                for (int i = atual.numEntradas; i >= 0; i--) {
+                    if (atual.filhos[i] != null) {
+                        stack.push(atual.filhos[i]);
+                    }
+                }
+            }
+        }
+        Collections.sort(tempIds); 
+        ids.addAll(tempIds);
+        return ids;
+    }
+
+    private No buscarFolhaParaInsercao(No no, int id) {
+        while (!no.isFolha) {
+            int i = 0;
+            while (i < no.numEntradas && id >= no.chaves[i]) {
+                i++;
+            }
+            no = no.filhos[i];
+        }
+        return no;
+    }
+
+    private void dividirFilho(No pai, int indiceFilho, No filho) {
+        No novoFilho = new No(ordem, filho.isFolha);
+        
+        int chavePromovida = filho.chaves[(ordem - 1) / 2];
+        
+        int j = 0;
+        for (int i = (ordem - 1) / 2 + 1; i < ordem - 1; i++) {
+            novoFilho.chaves[j] = filho.chaves[i];
+            novoFilho.valores[j] = filho.valores[i];
+            j++;
+        }
+        novoFilho.numEntradas = j;
+
+        if (!filho.isFolha) {
+            j = 0;
+            for (int i = (ordem - 1) / 2 + 1; i <= ordem - 1; i++) { 
+                novoFilho.filhos[j] = filho.filhos[i];
+                filho.filhos[i] = null;
+                j++;
+            }
+        }
+        
+        filho.numEntradas = (ordem - 1) / 2;
+
+        for (int k = pai.numEntradas - 1; k >= indiceFilho; k--) {
+            pai.chaves[k + 1] = pai.chaves[k];
+        }
+        
+        for (int k = pai.numEntradas; k >= indiceFilho + 1; k--) {
+            pai.filhos[k + 1] = pai.filhos[k];
+        }
+
+        pai.chaves[indiceFilho] = chavePromovida;
+        pai.filhos[indiceFilho + 1] = novoFilho;
+        pai.numEntradas++;
+    }
+    
+    private No encontrarPai(No raizBusca, No filho) {
+        if (raizBusca.isFolha || raizBusca.filhos[0].isFolha) {
+            return null;
+        }
+        for (int i = 0; i <= raizBusca.numEntradas; i++) {
+            if (raizBusca.filhos[i] == filho) {
+                return raizBusca;
+            } else if (!raizBusca.filhos[i].isFolha) {
+                No pai = encontrarPai(raizBusca.filhos[i], filho);
+                if (pai != null) {
+                    return pai;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static class No {
+        int[] chaves;
+        long[] valores;
+        No[] filhos;
+        int numEntradas;
+        boolean isFolha;
+
+        No(int ordem, boolean isFolha) {
+            this.chaves = new int[ordem - 1];
+            this.valores = new long[ordem - 1];
+            this.filhos = new No[ordem];
+            this.numEntradas = 0;
+            this.isFolha = isFolha;
+        }
+    }
 }
