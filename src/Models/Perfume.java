@@ -1,208 +1,190 @@
 package Models;
 
-import java.io.*;
-import java.nio.*;
-import java.nio.charset.*;
-import java.util.*;
-import java.util.concurrent.atomic.*;
+import java.nio.ByteBuffer;
+// import Services.GerenciadorArquivos; // Não é necessário aqui, a menos que haja uso direto
+import java.nio.charset.StandardCharsets;
+import java.util.Objects;
+import java.util.zip.CRC32;
 
-public class Perfume implements Serializable, Comparable<Perfume> {
-    // Campos obrigatórios
-    private final int id;
+public class Perfume {
+    // --- Constantes de Serialização ---
+    public static final int RECORD_SIZE = 256; // Tamanho total do registro
+    private static final int CHECKSUM_BYTES = Long.BYTES; // 8 bytes para o checksum CRC32
+
+    private static final int MAX_NAME_BYTES = 80; // Espaço fixo para o nome
+    private static final int MAX_BRAND_BYTES = 80; // Espaço fixo para a marca
+
+    private int id;
     private String nome;
     private String marca;
-    private double valor;
+    private int valor; // Em centavos, para evitar problemas de ponto flutuante
     private int estoque;
-    
-    // Novos campos para controle
-    private final AtomicInteger version = new AtomicInteger(0);
-    private final long createdAt;
-    private volatile long lastUpdated;
-    
-    // Valores padrão
-    private static final int MAX_NOME = 100;
-    private static final int MAX_MARCA = 50;
-    private static final double VALOR_MINIMO = 0.01;
+    private boolean ativo; // Para soft-delete
+    private int version; // Controle de versão para atualizações
 
-    // Construtores
-    public Perfume(int id, String nome, String marca, double valor, int estoque) {
-        validarCampos(id, nome, marca, valor, estoque);
-        
+    public Perfume(int id, String nome, String marca, int valor, int estoque) {
         this.id = id;
-        this.nome = nome.trim();            // Método "trim()" retira espaços da String, circulando erros
-        this.marca = marca.trim();
+        this.nome = Objects.requireNonNull(nome);
+        this.marca = Objects.requireNonNull(marca);
         this.valor = valor;
         this.estoque = estoque;
-        this.createdAt = System.currentTimeMillis();    // Atribuindo valor da data específica no momento de criação do Objeto
-        this.lastUpdated = this.createdAt;
+        this.ativo = true; // Por padrão, um novo perfume está ativo
+        this.version = 1; // Versão inicial
+        validaPerfume(); // Chama a validação na criação
     }
 
-    // Validação rigorosa
-    // Verificação de parâmetros para criação do objeto sem falhas
-    private void validarCampos(int id, String nome, String marca, double valor, int estoque) {
-        if (id <= 0) throw new IllegalArgumentException("ID inválido");               
-        if (nome == null || nome.trim().isEmpty() || nome.length() > MAX_NOME) {
-            throw new IllegalArgumentException("Nome inválido");
-        }
-        if (marca == null || marca.trim().isEmpty() || marca.length() > MAX_MARCA) {
-            throw new IllegalArgumentException("Marca inválida");
-        }
-        if (valor < VALOR_MINIMO) throw new IllegalArgumentException("Valor inválido");
-        if (estoque < 0) throw new IllegalArgumentException("Estoque não pode ser negativo");
+    public Perfume(int id, String nome) {
+    	this.id = id;
+        this.nome = Objects.requireNonNull(nome);
+        this.marca = "Marca Padrão"; // Valor padrão para marca
+        this.valor = 1;             // Valor padrão para valor
+        this.estoque = 0;           // Valor padrão para estoque
+        this.ativo = false; // Este construtor cria um perfume inativo por padrão
+        this.version = 1;
+        // validaPerfume() não é estritamente necessário aqui se o objetivo é sempre inativo
+        // mas pode ser chamado para manter a consistência da regra.
+        validaPerfume(); 
     }
 
-    // ---- Métodos de Acesso ----
+    // --- Getters e Setters ---
     public int getId() { return id; }
-    
     public String getNome() { return nome; }
-    public synchronized void setNome(String nome) {        // "Syncronized" Garante que o método será executado uma Thread por vez 
-        validarNome(nome);
-        this.nome = nome.trim();
-        atualizar();
-    }
-    
     public String getMarca() { return marca; }
-    public synchronized void setMarca(String marca) {
-        validarMarca(marca);
-        this.marca = marca.trim();
-        atualizar();
-    }
-    
-    public double getValor() { return valor; }
-    public synchronized void setValor(double valor) {
-        validarValor(valor);
-        this.valor = valor;
-        atualizar();
-    }
-    
+    public int getValor() { return valor; }
     public int getEstoque() { return estoque; }
-    public synchronized void setEstoque(int estoque) {
-        validarEstoque(estoque);
-        this.estoque = estoque;
-        atualizar();
+    public boolean isAtivo() { return ativo; }
+    public int getVersion() { return version; }
+
+    public void setNome(String nome) { this.nome = Objects.requireNonNull(nome); }
+    public void setMarca(String marca) { this.marca = Objects.requireNonNull(marca); }
+    
+    public void setValor(int valor) { 
+        this.valor = valor; 
+        validaPerfume(); // Chama validação ao alterar o valor
     }
     
-    // ---- Controle de Versão ----
-    public int getVersion() { return version.get(); }
-    public synchronized void incrementVersion() { 
-        version.incrementAndGet(); 
-        lastUpdated = System.currentTimeMillis();
+    public void setEstoque(int estoque) { 
+        this.estoque = estoque; 
+        validaPerfume(); // Chama validação ao alterar o estoque
     }
     
-    // ---- Serialização Otimizada ----
-    public byte[] toByteArray() throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream(256);
-        DataOutputStream dos = new DataOutputStream(baos);
-        
-        dos.writeInt(id);
-        dos.writeUTF(nome);
-        dos.writeUTF(marca);
-        dos.writeDouble(valor);
-        dos.writeInt(estoque);
-        dos.writeInt(version.get());
-        dos.writeLong(createdAt);
-        dos.writeLong(lastUpdated);
-        
-        return baos.toByteArray();
-    }
+    public void setAtivo(boolean ativo) { this.ativo = ativo; }
+    public void setVersion(int version) { this.version = version; }
+    public void desative() { this.ativo = false; }
     
-    public static Perfume fromByteArray(byte[] data) throws IOException {
-        ByteArrayInputStream bais = new ByteArrayInputStream(data);
-        DataInputStream dis = new DataInputStream(bais);
-        
-        int id = dis.readInt();
-        String nome = dis.readUTF();
-        String marca = dis.readUTF();
-        double valor = dis.readDouble();
-        int estoque = dis.readInt();
-        int version = dis.readInt();
-        long createdAt = dis.readLong();
-        long lastUpdated = dis.readLong();
-        
-        Perfume p = new Perfume(id, nome, marca, valor, estoque);
-        p.version.set(version);
-        p.lastUpdated = lastUpdated;
-        return p;
+    // Método de validação atualizado
+    public void validaPerfume() {
+        this.ativo = (this.estoque > 0 && this.valor > 0);
     }
-    
-    // ---- Métodos de Negócio ----
-    public synchronized void aplicarDesconto(double percentual) {
-        if (percentual <= 0 || percentual > 100) {
-            throw new IllegalArgumentException("Percentual inválido");
-        }
-        this.valor *= (1 - (percentual/100));
-        atualizar();
-    }
-    
-    public synchronized boolean reservarEstoque(int quantidade) {
-        if (quantidade <= 0 || quantidade > estoque) return false;
-        estoque -= quantidade;
-        atualizar();
-        return true;
-    }
-    
-    // ---- Controle de Tempo ----
-    public long getCreatedAt() { return createdAt; }
-    public long getLastUpdated() { return lastUpdated; }
-    private void atualizar() { 
-        lastUpdated = System.currentTimeMillis();
-        incrementVersion();
-    }
-    
-    // ---- Comparação e Identidade ----
-    @Override   //Métodos Importados para comparativo
-    public int compareTo(Perfume o) {
-        return Integer.compare(this.id, o.id);
-    }
-    
-    @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (!(obj instanceof Perfume)) return false;
-        return this.id == ((Perfume)obj).id;
-    }
-    
-    @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
-    
+
     @Override
     public String toString() {
-        return String.format(
-            "Perfume[id=%d, nome='%s', marca='%s', valor=%.2f, estoque=%d, versão=%d]",
-            id, nome, marca, valor, estoque, version.get()
-        );
+        return "Perfume" +
+               "\n id=" + id +
+               "\n nome='" + nome +
+               "\n marca='" + marca +
+               "\n valor=" + String.format("%.2f", (double)valor / 100.0) +
+               "\n estoque=" + estoque +
+               "\n ativo=" + ativo +
+               "\n version =" + version + "\n";
     }
-    
-    // ---- Validações Específicas ----
-    private void validarNome(String nome) {
-        if (nome == null || nome.trim().isEmpty()) {
-            throw new IllegalArgumentException("Nome não pode ser vazio");
+
+    // --- Métodos de Serialização e Desserialização ---
+    public byte[] toByteArray() {
+        ByteBuffer buffer = ByteBuffer.allocate(RECORD_SIZE);
+        buffer.position(CHECKSUM_BYTES); // Deixa espaço para o checksum
+
+        // Escreve os dados do perfume
+        buffer.putInt(this.id);
+        
+        byte[] nomeBytes = this.nome.getBytes(StandardCharsets.UTF_8);
+        int nomeLen = Math.min(nomeBytes.length, MAX_NAME_BYTES);
+        buffer.putInt(nomeLen); // Comprimento real do nome
+        buffer.put(nomeBytes, 0, nomeLen); // Bytes do nome
+        for (int i = 0; i < (MAX_NAME_BYTES - nomeLen); i++) { // Preenche com zeros
+            buffer.put((byte) 0);
         }
-        if (nome.length() > MAX_NOME) {
-            throw new IllegalArgumentException("Nome muito longo");
+
+        byte[] marcaBytes = this.marca.getBytes(StandardCharsets.UTF_8);
+        int marcaLen = Math.min(marcaBytes.length, MAX_BRAND_BYTES);
+        buffer.putInt(marcaLen); // Comprimento real da marca
+        buffer.put(marcaBytes, 0, marcaLen); // Bytes da marca
+        for (int i = 0; i < (MAX_BRAND_BYTES - marcaLen); i++) { // Preenche com zeros
+            buffer.put((byte) 0);
         }
+
+        buffer.putInt(this.valor);
+        buffer.putInt(this.estoque);
+        buffer.put(this.ativo ? (byte) 1 : (byte) 0);
+        buffer.putInt(this.version);
+
+        // Preenche o restante do buffer com zeros para atingir RECORD_SIZE
+        while (buffer.hasRemaining()) {
+            buffer.put((byte) 0);
+        }
+
+        // Calcula o checksum dos DADOS (do CHECKSUM_BYTES até o final do registro)
+        byte[] recordDataWithoutChecksumSpace = new byte[RECORD_SIZE - CHECKSUM_BYTES];
+        buffer.position(CHECKSUM_BYTES); // Posiciona para ler os dados
+        buffer.get(recordDataWithoutChecksumSpace); // Copia os dados para cálculo
+
+        CRC32 crc = new CRC32();
+        crc.update(recordDataWithoutChecksumSpace, 0, recordDataWithoutChecksumSpace.length);
+        long checksum = crc.getValue();
+
+        // Volta ao início do buffer e escreve o checksum
+        buffer.rewind();
+        buffer.putLong(checksum);
+
+        return buffer.array(); // Retorna o array de bytes completo (RECORD_SIZE)
     }
-    
-    private void validarMarca(String marca) {
-        if (marca == null || marca.trim().isEmpty()) {
-            throw new IllegalArgumentException("Marca não pode ser vazia");
+
+    public static Perfume fromByteArray(byte[] data) {
+        if (data == null || data.length != RECORD_SIZE) {
+            System.err.println("Erro: Array de bytes inválido para desserialização. Tamanho esperado: " + RECORD_SIZE + ", recebido: " + (data == null ? "null" : data.length));
+            return null;
         }
-        if (marca.length() > MAX_MARCA) {
-            throw new IllegalArgumentException("Marca muito longa");
+
+        ByteBuffer buffer = ByteBuffer.wrap(data);
+        
+        // 1. Validar Checksum
+        long storedChecksum = buffer.getLong(); // Lê o checksum armazenado
+        
+        byte[] recordDataWithoutChecksum = new byte[RECORD_SIZE - CHECKSUM_BYTES];
+        buffer.get(recordDataWithoutChecksum); // Lê os dados após o checksum para calcular
+        
+        CRC32 crc = new CRC32();
+        crc.update(recordDataWithoutChecksum, 0, recordDataWithoutChecksum.length);
+        long calculatedChecksum = crc.getValue();
+
+        if (storedChecksum != calculatedChecksum) {
+            System.err.println("Erro de Checksum: Dados corrompidos! Armazenado: " + storedChecksum + ", Calculado: " + calculatedChecksum);
+            return null; // Retorna nulo se o checksum falhar
         }
-    }
-    
-    private void validarValor(double valor) {
-        if (valor < VALOR_MINIMO) {
-            throw new IllegalArgumentException("Valor abaixo do mínimo permitido");
-        }
-    }
-    
-    private void validarEstoque(int estoque) {
-        if (estoque < 0) {
-            throw new IllegalArgumentException("Estoque não pode ser negativo");
-        }
+
+        // 2. Desserializar os dados (após pular o checksum ou recarregando o buffer a partir do CHECKSUM_BYTES)
+        buffer.position(CHECKSUM_BYTES); // Garante que a leitura de dados RECOMECE após o checksum
+
+        int id = buffer.getInt();
+        
+        int nomeLength = buffer.getInt();
+        byte[] nomeBytesBuffer = new byte[MAX_NAME_BYTES];
+        buffer.get(nomeBytesBuffer);
+        String nome = new String(nomeBytesBuffer, 0, Math.min(nomeLength, MAX_NAME_BYTES), StandardCharsets.UTF_8);
+        
+        int marcaLength = buffer.getInt();
+        byte[] marcaBytesBuffer = new byte[MAX_BRAND_BYTES];
+        buffer.get(marcaBytesBuffer);
+        String marca = new String(marcaBytesBuffer, 0, Math.min(marcaLength, MAX_BRAND_BYTES), StandardCharsets.UTF_8);
+
+        int valor = buffer.getInt();
+        int estoque = buffer.getInt();
+        boolean ativo = buffer.get() == 1;
+        int version = buffer.getInt();
+
+        Perfume p = new Perfume(id, nome, marca, valor, estoque);
+        p.setAtivo(ativo);
+        p.setVersion(version);
+        return p;
     }
 }
