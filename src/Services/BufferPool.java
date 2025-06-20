@@ -1,7 +1,8 @@
-package Utils;
+package Services;
 
 import java.nio.ByteBuffer;
-import java.util.concurrent.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 
 public class BufferPool {
     private final BlockingQueue<ByteBuffer> pool;
@@ -21,7 +22,7 @@ public class BufferPool {
 
     public ByteBuffer borrowBuffer() throws InterruptedException {
         ByteBuffer buffer = pool.take();
-        buffer.clear(); // Prepara para reuso
+        buffer.clear();
         return buffer;
     }
 
@@ -33,5 +34,18 @@ public class BufferPool {
 
     public int availableBuffers() {
         return pool.size();
+    }
+
+    public boolean contains(ByteBuffer buffer) {
+        return pool.contains(buffer);
+    }
+
+    public void close() {
+        System.out.println("BufferPool: Fechando e liberando buffers.");
+        pool.clear(); // Remove todos os buffers da fila.
+    }
+
+    public int getBufferSize() {
+        return bufferSize;
     }
 }
