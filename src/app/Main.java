@@ -44,6 +44,7 @@ public class Main {
             System.out.println("2. Listar perfumes");
             System.out.println("3. Atualizar perfume");
             System.out.println("4. Remover perfume");
+            System.out.println("6. Buscar por padrão");
             System.out.println("5. Sair");
             System.out.print("Opção: ");
 
@@ -63,6 +64,9 @@ public class Main {
                 case 4:
                     removerPerfume();
                     break;
+                case 6:
+                	buscaPadrao();
+                	break;
                 case 5: {
                     System.out.println("Saindo...");
                     return;
@@ -165,7 +169,7 @@ public class Main {
             int novoEstoque = scan.nextInt();
             scan.nextLine();
             existente.setEstoque(novoEstoque);
-            existente.validaPerfume();
+            //existente.validaPerfume();
             
             gerenciador.atualizar(existente);
             System.out.println("Perfume atualizado!");
@@ -175,6 +179,26 @@ public class Main {
         } catch (Exception e) {
             System.err.println("Erro inesperado ao atualizar: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+    private void buscaPadrao() {
+    	scan.nextLine(); 
+        System.out.print("Digite o padrão de busca (nome ou marca): ");
+        String padraoBusca = scan.nextLine();
+        try {
+            List<Perfume> encontrados = gerenciador.buscarPorPadrao(padraoBusca);
+            if (encontrados.isEmpty()) {
+                System.out.println("Nenhum perfume encontrado com o padrão '" + padraoBusca + "'.");
+            } else {
+                System.out.println("\n=== PERFUMES ENCONTRADOS COM PADRÃO '" + padraoBusca + "' ===");
+                for (Perfume p : encontrados) {
+                    System.out.println(p);
+                }
+            }
+        } catch (IOException | InterruptedException e) {
+            System.err.println("Erro ao buscar por padrão: " + e.getMessage());
+            // Se precisar de mais detalhes, descomente a linha abaixo durante a depuração:
+            // e.printStackTrace();
         }
     }
 
