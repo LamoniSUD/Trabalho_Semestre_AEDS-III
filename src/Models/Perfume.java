@@ -17,9 +17,9 @@ public class Perfume {
     private int id;
     private String nome;
     private String marca;
-    private int valor; // Em centavos, para evitar problemas de ponto flutuante
+    private int valor; // Em centavos, para evitar problemas com float
     private int estoque;
-    private boolean ativo; // Para soft-delete
+    private boolean ativo; // Para remoção lógica
     private int version; // Controle de versão para atualizações
 
     public Perfume(int id, String nome, String marca, int valor, int estoque) {
@@ -30,7 +30,7 @@ public class Perfume {
         this.estoque = estoque;
         this.ativo = true; // Por padrão, um novo perfume está ativo
         this.version = 1; // Versão inicial
-        validaPerfume(); // Chama a validação na criação
+        //validaPerfume(); // Chama a validação na criação
     }
 
     public Perfume(int id, String nome) {
@@ -43,7 +43,7 @@ public class Perfume {
         this.version = 1;
         // validaPerfume() não é estritamente necessário aqui se o objetivo é sempre inativo
         // mas pode ser chamado para manter a consistência da regra.
-        validaPerfume(); 
+        //validaPerfume(); 
     }
 
     // --- Getters e Setters ---
@@ -57,15 +57,16 @@ public class Perfume {
 
     public void setNome(String nome) { this.nome = Objects.requireNonNull(nome); }
     public void setMarca(String marca) { this.marca = Objects.requireNonNull(marca); }
+    public void setId(int id) {this.id = id;}
     
     public void setValor(int valor) { 
         this.valor = valor; 
-        validaPerfume(); // Chama validação ao alterar o valor
+        //validaPerfume(); // Chama validação ao alterar o valor
     }
     
     public void setEstoque(int estoque) { 
         this.estoque = estoque; 
-        validaPerfume(); // Chama validação ao alterar o estoque
+        //validaPerfume(); // Chama validação ao alterar o estoque
     }
     
     public void setAtivo(boolean ativo) { this.ativo = ativo; }
@@ -74,7 +75,7 @@ public class Perfume {
     
     // Método de validação atualizado
     public void validaPerfume() {
-        this.ativo = (this.estoque > 0 && this.valor > 0);
+      //this.ativo = (this.estoque > 0 && this.valor > 0);
     }
 
     @Override
@@ -88,7 +89,6 @@ public class Perfume {
                "\n ativo=" + ativo +
                "\n version =" + version + "\n";
     }
-
     // --- Métodos de Serialização e Desserialização ---
     public byte[] toByteArray() {
         ByteBuffer buffer = ByteBuffer.allocate(RECORD_SIZE);
