@@ -39,7 +39,6 @@ public class GerenciadorArquivos implements AutoCloseable {
         FILE_HEADER_VALID_BYTE_SIZE +
         FILE_HEADER_FILE_SIZE_LONG_SIZE +
         FILE_HEADER_LAST_ID_INT_SIZE;
-
     // Recursos do Arquivo 
     private final Arvore_BPlus arvore;
     private FileChannel arquivoChannel;
@@ -65,7 +64,6 @@ public class GerenciadorArquivos implements AutoCloseable {
 
     // Construtor 
     public GerenciadorArquivos(Arvore_BPlus arvore, String filePath) throws IOException, InterruptedException {
-        // Inicializa o gerenciador de arquivos
         this.arvore = Objects.requireNonNull(arvore, "A Árvore B+ não pode ser nula.");
         this.filePath = Objects.requireNonNull(filePath, "O caminho do arquivo não pode ser nulo.");
         this.bufferPool = new BufferPool(BUFFER_POOL_SIZE, ESTIMATED_MAX_RECORD_SIZE);
@@ -74,8 +72,7 @@ public class GerenciadorArquivos implements AutoCloseable {
 
         this.arquivoRAF = new RandomAccessFile(filePath, "rw");
         this.arquivoChannel = arquivoRAF.getChannel();
-        // Criando Chave de Criptografia de Colunas
-        this.criptografador = new CriptografiaColunar("PERFUMEKEY"); 
+        this.criptografador = new CriptografiaColunar("PERFUMEKEY");
         inicializarArquivo();
         lerCabecalhoDoArquivo();
 
@@ -86,9 +83,8 @@ public class GerenciadorArquivos implements AutoCloseable {
 
         this.batchExecutor = Executors.newWorkStealingPool();
         this.maintenanceExecutor = Executors.newSingleThreadScheduledExecutor();
-
-        recoverAndRebuildTree();
         agendarManutencoes();
+        recoverAndRebuildTree();
     }
 
     // Métodos de Gerenciamento do Cabeçalho do Arquivo 
@@ -146,17 +142,26 @@ public class GerenciadorArquivos implements AutoCloseable {
 
     // Gera e retorna um novo ID sequencial.
     public synchronized int novoID() {
-        return ++ultimoId;
+        return ++this.ultimoId;
     }
 
     // Métodos de CRUD 
 
     // Cria um novo registro de perfume no arquivo.
     public void criar(Perfume perfume) throws Exception {
-        Transaction txn = new Transaction("CREATE", perfume.getId());
+        Transaction txn = new Transaction("CREATE", perfume.getId()); // O ID da transação será corrigido abaixo
         try {
-        	Perfume perfumeCriptografado = criptografarPerfume(perfume);
-            byte[] dadosPerfumeBrutos = perfume.toByteArray();
+            // *** MUDANÇA ESSENCIAL AQUI: ATRIBUIR O NOVO ID ***
+            if (perfume.getId() == 0) { // Se o perfume não tem ID (é novo), atribua um
+                perfume.setId(novoID()); // Chame novoID() para pegar o próximo ID sequencial
+            }
+            // Agora o perfume tem o ID correto para a transação e inserção na árvore
+            txn = new Transaction("CREATE", perfume.getId()); // Atualiza o ID da transação
+
+            Perfume perfumeCriptografado = criptografarPerfume(perfume);
+            
+            byte[] dadosPerfumeBrutos = perfume.toByteArray(); // O perfume AGORA tem o ID correto e está criptografado
+            
             long posicao;
             Optional<GerenciadorEspaco.FreeBlock> freeBlockOpt = gerenciadorEspaco.getFreeBlock(dadosPerfumeBrutos.length + Integer.BYTES);
             if (freeBlockOpt.isPresent()) {
@@ -169,14 +174,18 @@ public class GerenciadorArquivos implements AutoCloseable {
             try {
                 escreverRegistro(posicao, dadosPerfumeBrutos, arquivoChannel);
 
+                // arvore.inserir() usará o ID atribuído acima
                 arvore.inserir(perfume.getId(), posicao);
                 registrosAtivos.incrementAndGet();
 
+                // A condição de atualização de ultimoId pode ser simplificada
+                // já que novoID() já garante que ele é o maior.
+                // Mas manter por segurança caso IDs sejam definidos manualmente fora.
                 if (perfume.getId() > this.ultimoId) {
-                    this.ultimoId = perfume.getId();
+                    this.ultimoId = perfume.getId(); // Garante que ultimoId está sempre no valor mais alto já visto
                 }
                 this.tamanhoDoArquivo = Math.max(this.tamanhoDoArquivo, posicao + dadosPerfumeBrutos.length + Integer.BYTES);
-                escreverCabecalhoNoArquivo();
+                escreverCabecalhoNoArquivo(); // Persiste o ultimoId e tamanhoDoArquivo atualizados
 
                 txn.commit();
             } finally {
@@ -192,22 +201,26 @@ public class GerenciadorArquivos implements AutoCloseable {
     public Optional<Perfume> buscar(int id) throws IOException, InterruptedException {
         gerenciadorLock.readLock().lock();
         try {
-            long posicao = arvore.buscar(id);
+            long posicao = arvore.buscar(id); // Busca a posição do ID na árvore
             if (posicao == -1) {
+                // Se o ID não for encontrado na árvore, retorna Optional vazio.
                 return Optional.empty();
             }
 
             getSegmentLock(posicao).readLock().lock();
             try {
-                byte[] dadosBrutos = lerRegistro(posicao, arquivoChannel);
-                Perfume perfume = Perfume.fromByteArray(dadosBrutos);
+                byte[] dadosBrutos = lerRegistro(posicao, arquivoChannel); // Lê os dados brutos do arquivo
+                Perfume perfume = Perfume.fromByteArray(dadosBrutos); // Converte para objeto Perfume
 
-                if (perfume == null || perfume.getId() != id || !perfume.isAtivo()) {
-                    System.err.println("Alerta: Registro na posição " + posicao + " não corresponde ao ID " + id + " ou está inativo/corrompido. Ignorando.");
+                // *** MUDANÇA AQUI: Removida a verificação '!perfume.isAtivo()' ***
+                if (perfume == null || perfume.getId() != id) {
+                    System.err.println("Alerta: Registro na posição " + posicao + " não corresponde ao ID " + id + " ou está corrompido. Ignorando.");
                     return Optional.empty();
                 }
+
+                // *** MUDANÇA AQUI: Retorna o perfume DESCRIPTOGRAFADO ***
                 Perfume perfumeDescriptografado = descriptografarPerfume(perfume);
-                return Optional.of(perfume);
+                return Optional.of(perfumeDescriptografado); // Retorna o perfume descriptografado
             } finally {
                 getSegmentLock(posicao).readLock().unlock();
             }
@@ -215,9 +228,7 @@ public class GerenciadorArquivos implements AutoCloseable {
             gerenciadorLock.readLock().unlock();
         }
     }
-
     // Atualiza um registro de perfume existente.
-     
     public void atualizar(Perfume perfume) throws Exception {
         gerenciadorLock.readLock().lock();
         Transaction txn = new Transaction("UPDATE", perfume.getId());
@@ -234,7 +245,6 @@ public class GerenciadorArquivos implements AutoCloseable {
             try {
                 dadosBrutosExistente = lerRegistro(posicaoExistente, arquivoChannel);
                 perfumeExistente = Perfume.fromByteArray(dadosBrutosExistente);
-                Perfume perfumeDescriptografado = descriptografarPerfume(perfume);
                 tamanhoRegistroAntigo = dadosBrutosExistente.length + Integer.BYTES;
 
                 if (perfumeExistente == null || perfumeExistente.getId() != perfume.getId() || !perfumeExistente.isAtivo()) {
@@ -245,6 +255,7 @@ public class GerenciadorArquivos implements AutoCloseable {
                 getSegmentLock(posicaoExistente).readLock().unlock();
             }
 
+            criptografarPerfume(perfume);
             byte[] dadosAtualizadosBrutos = perfume.toByteArray();
             int tamanhoNovoRegistro = dadosAtualizadosBrutos.length + Integer.BYTES;
 
@@ -262,15 +273,19 @@ public class GerenciadorArquivos implements AutoCloseable {
             } else {
                 getSegmentLock(posicaoExistente).writeLock().lock();
                 try {
-                    perfumeExistente.desative();
-                    perfumeExistente.setVersion(perfumeExistente.getVersion() + 1);
+                    //perfumeExistente.desativar(); 
+                    perfumeExistente.setVersion(perfumeExistente.getVersion() + 1); 
                     byte[] dadosInativosBrutos = perfumeExistente.toByteArray();
-                    escreverRegistro(posicaoExistente, dadosInativosBrutos, arquivoChannel);
-                    gerenciadorEspaco.addFreeBlock(posicaoExistente, tamanhoRegistroAntigo);
+                    escreverRegistro(posicaoExistente, dadosInativosBrutos, arquivoChannel); 
+                    gerenciadorEspaco.addFreeBlock(posicaoExistente, tamanhoRegistroAntigo); 
+                    registrosAtivos.decrementAndGet(); 
                 } finally {
                     getSegmentLock(posicaoExistente).writeLock().unlock();
                 }
+                
                 criar(perfume);
+                arvore.remover(perfumeExistente.getId()); 
+
                 txn.commit();
             }
         } catch (Exception e) {
@@ -496,6 +511,37 @@ public class GerenciadorArquivos implements AutoCloseable {
             gerenciadorEspaco.close();
         }
     }
+    public List<Perfume> buscarPorPadrao(String padrao) throws IOException, InterruptedException {
+        List<Perfume> resultados = new ArrayList<>();
+        String padraoLowerCase = padrao.toLowerCase(); // Converte o padrão para minúsculas para busca case-insensitive
+
+        gerenciadorLock.readLock().lock(); // Adquire um lock de leitura para acesso seguro ao arquivo
+        try {
+            List<Integer> todosIds = arvore.buscarTodosIds(); // Obtém todos os IDs da sua B-Tree
+
+            for (int id : todosIds) {
+                // Reutiliza o método buscar(id) existente para carregar o perfume
+                // O buscar(id) já lida com descriptografia e locks de segmento.
+                Optional<Perfume> pOpt = buscar(id); // Chamada ao seu método buscar(int id)
+
+                if (pOpt.isPresent()) {
+                    Perfume perfume = pOpt.get();
+                    // Verifica se o perfume está ativo e se o nome ou a marca contém o padrão
+                    // Usamos toLowerCase() para uma comparação que não diferencia maiúsculas de minúsculas
+                    if (perfume.isAtivo() &&
+                        (perfume.getNome().toLowerCase().contains(padraoLowerCase) ||
+                         perfume.getMarca().toLowerCase().contains(padraoLowerCase))) {
+                        resultados.add(perfume); // Adiciona o perfume à lista de resultados
+                    }
+                }
+                // Não é necessário um 'else' para o pOpt.isPresent() aqui, pois o buscar(id)
+                // já imprime um erro se o registro não puder ser carregado/descomprimido.
+            }
+        } finally {
+            gerenciadorLock.readLock().unlock(); // Libera o lock de leitura
+        }
+        return resultados; // Retorna a lista de perfumes que correspondem ao padrão
+    }
 
     // Métodos Auxiliares de Leitura/Escrita
     private Perfume criptografarPerfume(Perfume perfume) {
@@ -505,8 +551,6 @@ public class GerenciadorArquivos implements AutoCloseable {
         String marcaCriptografada = criptografador.criptografar(perfume.getMarca());
 
         // Cria um novo objeto Perfume com os campos criptografados
-        // ou modifica o objeto existente se seus setters permitirem.
-        // Assumo que Perfume tem setters. Se não, você pode criar uma cópia ou outra abordagem.
         perfume.setNome(nomeCriptografado);
         perfume.setMarca(marcaCriptografada);
         return perfume;
@@ -703,6 +747,7 @@ public class GerenciadorArquivos implements AutoCloseable {
     private void agendarManutencoes() {
         maintenanceExecutor.scheduleAtFixedRate(() -> {
             try {
+            	System.out.println("Manutenção agendada - campactando...");
                 Path pathOriginal = Paths.get(this.filePath);
                 String dirOriginal = "";
                 if (pathOriginal.getParent() != null) {
@@ -720,7 +765,8 @@ public class GerenciadorArquivos implements AutoCloseable {
                 Thread.currentThread().interrupt();
                 System.err.println("GerenciadorArquivos: Compactação agendada interrompida: " + e.getMessage());
             }
-        }, 120, 120, TimeUnit.MINUTES);
+        }, 10, 10, TimeUnit.MINUTES);
+        System.out.println("Compactacao concluida!");
     }
 
     // Obtém o ReadWriteLock de segmento apropriado para uma dada posição no arquivo.
