@@ -1,4 +1,4 @@
-package Structures;
+/*package Structures;
 import java.io.*;
 
 public class Hash {
@@ -69,4 +69,4 @@ public class Hash {
         }
         return null;
     }
-}
+}*/
